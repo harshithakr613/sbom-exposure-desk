@@ -1,0 +1,15 @@
+fastapi>=0.110
+uvicorn[standard]>=0.27
+sqlalchemy>=2.0
+pydantic>=2.6
+requests>=2.31
+packaging>=23.0
+python-dotenv>=1.0
+
+# Capstone 1 architecture components
+networkx>=3.0          # transitive dependency graph traversal
+rapidfuzz>=3.0         # CPE fuzzy matching (difflib fallback if absent)
+reportlab>=4.0         # PDF audit reports (HTML fallback if absent)
+
+# Optional: PostgreSQL instead of the default SQLite
+# psycopg[binary]>=3.1

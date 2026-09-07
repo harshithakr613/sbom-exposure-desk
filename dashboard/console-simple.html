@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exposure Console</title>
+<style>
+:root{
+  --paper:#FBFAF8; --card:#FFFFFF;
+  --ink:#14161C; --ink-2:#5A6070; --ink-3:#8B90A0;
+  --rule:#E6E4DF; --rule-2:#D3D0C9;
+  --navy:#1D2A44; --signal:#B4331F; --signal-soft:#FBEDEA;
+  --amber:#8A6410; --amber-soft:#FBF3E0;
+  --moss:#2E6042; --moss-soft:#E8F1EA; --slate-soft:#EEF0F4;
+  --focus:#2D5BD0; --r:4px;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-0.01em}
+button{font:inherit;font-variant-numeric:tabular-nums}
+a{color:var(--focus)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.shell{display:grid;grid-template-columns:212px 1fr;min-height:100vh}
+nav{border-right:1px solid var(--rule);background:var(--card);padding:20px 0;
+  position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{padding:0 18px 18px;border-bottom:1px solid var(--rule);margin-bottom:10px}
+.brand h1{font-size:15px;line-height:1.25}
+.brand .org{display:block;margin-top:5px;font-family:var(--mono);font-size:11.5px;
+  color:var(--ink-3);word-break:break-all}
+nav a.nav{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:8px 18px;color:var(--ink-2);text-decoration:none;font-size:14px;
+  border-left:2px solid transparent;cursor:pointer}
+nav a.nav:hover{color:var(--ink);background:var(--paper)}
+nav a.nav.on{color:var(--ink);border-left-color:var(--navy);font-weight:600;background:var(--paper)}
+nav a.nav .n{font-size:12px;color:var(--ink-3)}
+nav .grp{padding:14px 18px 5px;font-size:11px;color:var(--ink-3)}
+
+main{padding:26px 32px 60px;max-width:1180px}
+header.page{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:22px}
+header.page h2{font-size:22px}
+header.page p{margin:5px 0 0;color:var(--ink-2);font-size:14px;max-width:62ch}
+.actions{display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0}
+.btn{border:1px solid var(--rule-2);background:var(--card);color:var(--ink);
+  padding:7px 13px;border-radius:var(--r);cursor:pointer;font-size:13.5px}
+.btn:hover{border-color:var(--ink-3)}
+.btn[disabled]{opacity:.45;cursor:progress}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.primary:hover{background:#16223a}
+
+.funnel{background:var(--card);border:1px solid var(--rule);border-radius:6px;
+  padding:22px 24px;margin-bottom:22px}
+.funnel .lead{font-size:14px;color:var(--ink-2);margin:0 0 18px;max-width:78ch}
+.funnel .lead b{color:var(--ink);font-weight:600}
+.stage{display:grid;grid-template-columns:172px 1fr 96px;gap:14px;align-items:center;padding:8px 0}
+.stage+.stage{border-top:1px solid var(--rule)}
+.stage .lbl{font-size:13.5px;color:var(--ink-2)}
+.stage .bar{height:22px;background:var(--slate-soft);border-radius:2px;position:relative;overflow:hidden}
+.stage .bar i{position:absolute;inset:0 auto 0 0;background:var(--navy);border-radius:2px}
+.stage.last .bar i{background:var(--signal)}
+.stage .val{text-align:right;font-size:17px;font-weight:600}
+.stage .note{grid-column:2/4;font-size:12.5px;color:var(--ink-3);margin-top:-4px}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:1px;
+  background:var(--rule);border:1px solid var(--rule);border-radius:6px;overflow:hidden;margin-bottom:22px}
+.stat{background:var(--card);padding:14px 16px}
+.stat dt{font-size:12.5px;color:var(--ink-2);margin:0 0 5px}
+.stat dd{margin:0;font-size:24px;font-weight:600;line-height:1.1}
+.stat dd small{font-size:12.5px;font-weight:400;color:var(--ink-3);margin-left:5px}
+.stat.risk dd{color:var(--signal)}
+.stat.good dd{color:var(--moss)}
+
+.panel{background:var(--card);border:1px solid var(--rule);border-radius:6px;
+  overflow:hidden;margin-bottom:22px}
+.panel>h3{padding:13px 18px;font-size:14px;border-bottom:1px solid var(--rule)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;padding:9px 14px;font-weight:600;font-size:12.5px;color:var(--ink-2);
+  border-bottom:1px solid var(--rule);background:var(--paper)}
+td{padding:9px 14px;border-bottom:1px solid var(--rule);vertical-align:top}
+tr.row{cursor:pointer}
+tr.row:hover td{background:var(--paper)}
+td.num{text-align:right}
+.repo{font-weight:600}
+.meta{color:var(--ink-2);font-size:12.5px;font-family:var(--mono)}
+.tag{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11.5px;white-space:nowrap}
+.t-CRITICAL{background:var(--signal-soft);color:var(--signal)}
+.t-HIGH{background:var(--amber-soft);color:var(--amber)}
+.t-MEDIUM{background:var(--slate-soft);color:var(--ink-2)}
+.t-LOW{background:var(--slate-soft);color:var(--ink-3)}
+.t-ok{background:var(--moss-soft);color:var(--moss)}
+
+tr.detail td{background:var(--paper);padding:16px 18px 18px}
+.why{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.why h4{margin:0 0 8px;font-size:12.5px;color:var(--ink-2);font-weight:600}
+.why dl{margin:0;font-size:13px}
+.why dl div{display:flex;justify-content:space-between;gap:12px;padding:2px 0}
+.why dt{color:var(--ink-2)}
+.why dd{margin:0}
+.contrib{display:flex;height:8px;border-radius:2px;overflow:hidden;margin:0 0 8px;background:var(--slate-soft)}
+.contrib i{display:block}
+.key{display:flex;gap:14px;font-size:12px;color:var(--ink-2);flex-wrap:wrap}
+.key span{display:flex;align-items:center;gap:5px}
+.key b{width:9px;height:9px;border-radius:2px;display:inline-block}
+
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;padding:18px}
+label{display:block;font-size:12.5px;color:var(--ink-2);margin-bottom:5px}
+input,select{width:100%;padding:7px 9px;border:1px solid var(--rule-2);
+  border-radius:var(--r);font:14px var(--sans);background:var(--card);color:var(--ink)}
+.form .wide{grid-column:1/-1}
+.form .foot{grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.hint{font-size:12.5px;color:var(--ink-3);margin:0}
+
+.empty{padding:28px 18px;color:var(--ink-2);font-size:14px}
+.empty b{display:block;color:var(--ink);margin-bottom:4px}
+#toast{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;
+  padding:11px 16px;border-radius:5px;font-size:13.5px;max-width:390px;opacity:0;
+  transform:translateY(6px);transition:opacity .15s,transform .15s;pointer-events:none}
+#toast.on{opacity:1;transform:none}
+.view{display:none}
+.view.on{display:block}
+.filters{display:flex;gap:10px;align-items:center;padding:11px 14px;
+  border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.filters select,.filters input{width:auto;min-width:132px}
+.filters .spacer{flex:1}
+@media (max-width:820px){
+  .shell{grid-template-columns:1fr}
+  nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--rule)}
+  main{padding:20px 16px 50px}
+  .stage{grid-template-columns:120px 1fr 70px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+<nav>
+  <div class="brand">
+    <h1>Exposure Console</h1>
+    <span class="org" id="org">connecting…</span>
+  </div>
+  <a class="nav on" data-view="overview">Overview</a>
+  <a class="nav" data-view="queue">Remediation queue <span class="n" id="n-queue"></span></a>
+  <a class="nav" data-view="quick">Quick wins <span class="n" id="n-quick"></span></a>
+  <div class="grp">Context</div>
+  <a class="nav" data-view="business">Business processes <span class="n" id="n-bp"></span></a>
+  <a class="nav" data-view="repos">Repositories <span class="n" id="n-repo"></span></a>
+  <div class="grp">Measurement</div>
+  <a class="nav" data-view="impact">Risk reduction</a>
+  <a class="nav" data-view="quality">SBOM quality</a>
+</nav>
+
+<main>
+<section class="view on" id="v-overview">
+  <header class="page">
+    <div><h2>Where to start this morning</h2>
+    <p>Every dependency across the organisation, narrowed to the findings that
+       threaten business-critical services and can be acted on today.</p></div>
+    <div class="actions">
+      <button class="btn" id="b-sync">Scan repositories</button>
+      <button class="btn" id="b-corr">Link Dependabot alerts</button>
+      <button class="btn primary" id="b-refresh">Check for fixes</button>
+    </div>
+  </header>
+  <div class="funnel">
+    <p class="lead" id="funnel-lead">Loading…</p>
+    <div id="funnel-stages"></div>
+  </div>
+  <dl class="stats" id="overview-stats"></dl>
+</section>
+
+<section class="view" id="v-queue">
+  <header class="page">
+    <div><h2>Remediation queue</h2>
+    <p>Ranked by business impact rather than severity alone. Open a row to see
+       why it sits where it does.</p></div>
+    <div class="actions">
+      <button class="btn" id="b-csv">Download CSV</button>
+      <button class="btn" id="b-pdf">Download report</button>
+    </div>
+  </header>
+  <div class="panel">
+    <div class="filters">
+      <select id="f-state"><option value="open">Open</option>
+        <option value="resolved">Fixed</option><option value="all">All</option></select>
+      <select id="f-tier"><option value="">All tiers</option><option>CRITICAL</option>
+        <option>HIGH</option><option>MEDIUM</option><option>LOW</option></select>
+      <input id="f-text" placeholder="Filter by repository or package">
+      <label style="display:flex;align-items:center;gap:6px;margin:0">
+        <input type="checkbox" id="f-dedupe" style="width:auto" checked>
+        <span class="hint">Merge duplicate advisories</span></label>
+      <span class="spacer"></span><span class="hint" id="queue-count"></span>
+    </div>
+    <table><thead><tr><th style="width:30px"></th><th>Repository</th>
+      <th>Business process</th><th>Package</th><th>Advisory</th>
+      <th class="num">Score</th><th class="num">Was</th><th>Tier</th>
+    </tr></thead><tbody id="queue-body"></tbody></table>
+  </div>
+</section>
+
+<section class="view" id="v-quick">
+  <header class="page"><div><h2>Quick wins</h2>
+    <p>High business impact, low upgrade effort. Effort never lowers a finding's
+       risk score — it decides what is worth the next twenty minutes.</p></div></header>
+  <div class="panel"><table><thead><tr><th>Repository</th><th>Business process</th>
+    <th>Upgrade</th><th>Effort</th><th class="num">Risk</th>
+    <th class="num">Value / effort</th><th></th></tr></thead>
+    <tbody id="quick-body"></tbody></table></div>
+</section>
+
+<section class="view" id="v-business">
+  <header class="page"><div><h2>Business processes</h2>
+    <p>Criticality is derived from these attributes, transcribed from Business
+       Requirements Documents. Repositories inherit it through the mapping.</p></div></header>
+  <div class="panel"><h3>Add a business process</h3>
+    <div class="form">
+      <div><label for="p-name">Process name</label><input id="p-name" placeholder="Payment Processing"></div>
+      <div><label for="p-owner">Owner</label><input id="p-owner" placeholder="Payments Engineering"></div>
+      <div><label for="p-rev">Revenue dependency</label><select id="p-rev">
+        <option>none</option><option>indirect</option><option>direct</option></select></div>
+      <div><label for="p-cust">Customer facing</label><select id="p-cust">
+        <option value="false">No</option><option value="true">Yes</option></select></div>
+      <div><label for="p-avail">Availability requirement</label><select id="p-avail">
+        <option>low</option><option>medium</option><option>high</option><option>critical</option></select></div>
+      <div><label for="p-data">Data sensitivity</label><select id="p-data">
+        <option>public</option><option>internal</option><option>confidential</option>
+        <option>regulated</option></select></div>
+      <div><label for="p-reg">Regulatory scope</label><input id="p-reg" placeholder="PCI-DSS, GDPR"></div>
+      <div><label for="p-doc">Source document</label><input id="p-doc" placeholder="BRD-PAY-001"></div>
+      <div><label for="p-ref">Section</label><input id="p-ref" placeholder="s.3.1 Business Criticality"></div>
+      <div class="wide"><label for="p-repo">Map to repository</label><select id="p-repo"></select></div>
+      <div class="foot"><button class="btn primary" id="b-addbp">Save and rescore</button>
+        <p class="hint">Saving recalculates every finding on the mapped repository immediately.</p></div>
+    </div>
+  </div>
+  <div class="panel"><h3>Defined processes</h3>
+    <table><thead><tr><th>Process</th><th>Repositories</th><th>Revenue</th>
+      <th>Customer</th><th>Availability</th><th>Data</th><th>Regulatory</th>
+      <th>Source</th></tr></thead><tbody id="bp-body"></tbody></table></div>
+</section>
+
+<section class="view" id="v-repos">
+  <header class="page"><div><h2>Repositories</h2>
+    <p>Repositories with no business process mapped are scored as unknown risk,
+       not low risk, so they surface here rather than sinking down the queue.</p></div></header>
+  <div class="panel"><table><thead><tr><th>Repository</th><th>Business process</th>
+    <th>Regulatory scope</th><th class="num">Open findings</th><th>Last scanned</th>
+  </tr></thead><tbody id="repo-body"></tbody></table></div>
+</section>
+
+<section class="view" id="v-impact">
+  <header class="page">
+    <div><h2>Risk reduction</h2>
+    <p>What remediation achieved, measured from resolution timestamps recorded by
+       GitHub rather than estimated.</p></div>
+    <div class="actions"><button class="btn" id="b-snap">Save snapshot</button></div>
+  </header>
+  <dl class="stats" id="impact-ops"></dl>
+  <dl class="stats" id="impact-biz"></dl>
+  <div class="panel"><h3>Business processes still exposed</h3>
+    <div id="at-risk" class="empty"></div></div>
+</section>
+
+<section class="view" id="v-quality">
+  <header class="page"><div><h2>SBOM quality</h2>
+    <p>Correlation depends on component identifiers. A repository whose SBOM lacks
+       them cannot be assessed accurately, so the gap is reported rather than hidden.</p></div></header>
+  <div class="panel"><table><thead><tr><th>Repository</th><th>Source</th>
+    <th class="num">Quality</th><th>Gate</th><th>Dependency chains</th>
+  </tr></thead><tbody id="quality-body"></tbody></table></div>
+</section>
+</main>
+</div>
+<div id="toast"></div>
+
+<script>
+const API = (location.origin && location.origin !== 'null')
+  ? location.origin : 'http://127.0.0.1:8000';
+const STATE = {exposures: []};
+const $ = s => document.querySelector(s);
+const el = (t,c,x)=>{const n=document.createElement(t);
+  if(c)n.className=c; if(x!==undefined)n.textContent=x; return n;};
+const num = n => (n===null||n===undefined) ? '\u2014' : Number(n).toLocaleString();
+const short = r => (r||'').split('/').pop();
+
+let toastTimer;
+function toast(m, ms=3400){const t=$('#toast');t.textContent=m;t.classList.add('on');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),ms);}
+
+async function api(p,o){const r=await fetch(API+p,o);
+  if(!r.ok) throw new Error('server returned '+r.status); return r.json();}
+
+document.querySelectorAll('nav a.nav').forEach(a=>{a.onclick=()=>{
+  document.querySelectorAll('nav a.nav').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  a.classList.add('on'); $('#v-'+a.dataset.view).classList.add('on');};});
+
+async function run(btn,busy,path,done){
+  btn.disabled=true; const was=btn.textContent; btn.textContent=busy;
+  try{ const r=await api(path,{method:'POST'}); toast(done(r)); await loadAll(); }
+  catch(e){ toast('That did not complete: '+e.message, 7000); }
+  finally{ btn.disabled=false; btn.textContent=was; }
+}
+$('#b-sync').onclick=e=>run(e.target,'Scanning\u2026','/api/sync',
+  r=>`Scanned ${r.repositories} repositories and ${num(r.components)} components. ${num(r.exposures)} new findings.`);
+$('#b-corr').onclick=e=>run(e.target,'Linking\u2026','/api/remediation/correlate',
+  r=>`Read ${num(r.alerts_seen)} Dependabot alerts and linked them to findings.`);
+$('#b-refresh').onclick=e=>run(e.target,'Checking\u2026','/api/remediation/refresh',
+  r=>r.resolved?`${r.resolved} finding${r.resolved>1?'s are':' is'} now fixed.`
+              :'Nothing new has been fixed since the last check.');
+$('#b-snap').onclick=e=>run(e.target,'Saving\u2026','/api/impact/snapshot',()=>'Snapshot saved.');
+$('#b-csv').onclick=()=>location.href=API+'/api/export/csv?state='+$('#f-state').value;
+$('#b-pdf').onclick=()=>location.href=API+'/api/report?state='+$('#f-state').value;
+
+function renderFunnel(f){
+  const s=f.stages;
+  $('#funnel-lead').innerHTML =
+    `<b>${num(s[0].count)}</b> components across the organisation contain
+     <b>${num(s[1].count)}</b> vulnerability findings. After merging duplicate advisories
+     and applying business context, <b>${num(s[3].count)}</b> threaten a business-critical
+     service \u2014 and <b>${num(f.patch_level_quick_wins)}</b> can be fixed with a
+     backwards-compatible upgrade.`;
+  const box=$('#funnel-stages'); box.innerHTML='';
+  const top=s[0].count||1;
+  s.forEach((st,i)=>{
+    const row=el('div','stage'+(i===s.length-1?' last':''));
+    row.append(el('div','lbl',st.stage));
+    const bar=el('div','bar'), fill=el('i');
+    fill.style.width=Math.max(0.5,(st.count/top)*100)+'%';
+    bar.append(fill); row.append(bar);
+    row.append(el('div','val',num(st.count)));
+    row.append(el('div','note',st.note));
+    box.append(row);
+  });
+}
+
+function statList(target,items){
+  const dl=$(target); dl.innerHTML='';
+  items.forEach(([k,v,cls,sub])=>{
+    const d=el('div','stat'+(cls?' '+cls:''));
+    d.append(el('dt','',k));
+    const dd=el('dd','',v); if(sub) dd.append(el('small','',sub));
+    d.append(dd); dl.append(d);
+  });
+}
+
+function contribBar(c){
+  const total=(c.cvss||0)+(c.epss||0)+(c.criticality||0)||1;
+  const w=el('div','contrib');
+  [['#1D2A44',c.cvss],['#B4331F',c.epss],['#2E6042',c.criticality]].forEach(([col,v])=>{
+    const i=el('i'); i.style.background=col; i.style.width=((v||0)/total*100)+'%'; w.append(i);});
+  return w;
+}
+
+function renderQueue(){
+  const state=$('#f-state').value, tier=$('#f-tier').value;
+  const q=$('#f-text').value.trim().toLowerCase();
+  const rows=STATE.exposures.filter(e=>
+    (!tier||e.tier===tier) &&
+    (!q||((e.repository||'')+' '+(e.component||'')).toLowerCase().includes(q)));
+  $('#queue-count').textContent=rows.length+' shown';
+  const body=$('#queue-body'); body.innerHTML='';
+  if(!rows.length){
+    const tr=el('tr'),td=el('td'); td.colSpan=8; td.className='empty';
+    td.innerHTML='<b>Nothing matches those filters.</b>Widen the filters, or scan the repositories to pick up new findings.';
+    tr.append(td); body.append(tr); return;
+  }
+  rows.slice(0,300).forEach(e=>{
+    const tr=el('tr','row');
+    tr.append(el('td','',"\u002B"));
+    tr.append(el('td','repo',short(e.repository)));
+    const ex=e.explanation||{}, c=ex.contributions||{};
+    tr.append(el('td','',ex.driving_process||'Not mapped'));
+    const pkg=el('td'); pkg.append(document.createTextNode(e.component||''));
+    pkg.append(el('div','meta',e.version||'version unresolved')); tr.append(pkg);
+    tr.append(el('td','meta',e.cve_id||e.advisory_id||''));
+    tr.append(el('td','num',e.business_score==null?'\u2014':e.business_score.toFixed(2)));
+    tr.append(el('td','num',e.baseline_score==null?'\u2014':e.baseline_score.toFixed(2)));
+    const tt=el('td');
+    tt.innerHTML = e.state==='resolved'
+      ? '<span class="tag t-ok">fixed</span>'
+      : `<span class="tag t-${e.tier}">${(e.tier||'').toLowerCase()}</span>`;
+    tr.append(tt);
+
+    const det=el('tr','detail'); det.style.display='none';
+    const dtd=el('td'); dtd.colSpan=8;
+    const grid=el('div','why');
+
+    const why=el('div'); why.append(el('h4','','Why it ranks here'));
+    why.append(contribBar(c));
+    const key=el('div','key');
+    key.innerHTML=`<span><b style="background:#1D2A44"></b>Severity ${(c.cvss||0).toFixed(2)}</span>
+      <span><b style="background:#B4331F"></b>Exploitation ${(c.epss||0).toFixed(2)}</span>
+      <span><b style="background:#2E6042"></b>Business ${(c.criticality||0).toFixed(2)}</span>`;
+    why.append(key);
+    if(ex.compliance_factor>1)
+      why.append(el('p','hint',`Uplifted \u00d7${ex.compliance_factor} for ${(ex.regimes||[]).join(', ')} scope.`));
+    grid.append(why);
+
+    const facts=el('div'); facts.append(el('h4','','Finding'));
+    const dl=document.createElement('dl');
+    [['Repository',e.repository],['Dependency',e.direct?'Direct':'Transitive'],
+     ['Matched by',(e.match_type||'').replace(/_/g,' ').toLowerCase()],
+     ['Upgrade to',e.first_patched_version||'no fix published'],
+     ['Effort',e.fix_effort_label||'unknown']].forEach(([k,v])=>{
+      const d=el('div'); d.append(el('dt','',k)); d.append(el('dd','',v||'\u2014')); dl.append(d);});
+    facts.append(dl); grid.append(facts);
+
+    const act=el('div'); act.append(el('h4','','Fix it'));
+    if(e.dependabot_alert_url){
+      const a=document.createElement('a');
+      a.href=e.dependabot_alert_url; a.target='_blank'; a.rel='noopener';
+      a.className='btn primary'; a.textContent='Open Dependabot alert';
+      a.style.cssText='display:inline-block;text-decoration:none';
+      act.append(a);
+      act.append(el('p','hint','Review and merge the security update on GitHub. This console never writes to your repositories.'));
+    } else {
+      act.append(el('p','hint','No Dependabot alert is linked to this finding. Link alerts from the Overview, or upgrade the package manually.'));
+    }
+    grid.append(act);
+    dtd.append(grid); det.append(dtd);
+    tr.onclick=()=>{const open=det.style.display!=='none';
+      det.style.display=open?'none':''; tr.firstChild.textContent=open?"\u002B":"\u2212";};
+    body.append(tr); body.append(det);
+  });
+}
+
+function renderQuick(rows){
+  const body=$('#quick-body'); body.innerHTML='';
+  if(!rows.length){
+    const tr=el('tr'),td=el('td'); td.colSpan=7; td.className='empty';
+    td.innerHTML='<b>No quick wins yet.</b>Link Dependabot alerts from the Overview so upgrade paths and effort can be worked out.';
+    tr.append(td); body.append(tr); return;
+  }
+  rows.forEach(q=>{
+    const tr=el('tr');
+    tr.append(el('td','repo',short(q.repository)));
+    tr.append(el('td','',q.business_process||'Not mapped'));
+    tr.append(el('td','meta',q.upgrade||''));
+    tr.append(el('td','',q.fix_effort_label||''));
+    tr.append(el('td','num',(q.business_score||0).toFixed(2)));
+    tr.append(el('td','num',(q.quick_win_score||0).toFixed(2)));
+    const a=el('td');
+    if(q.dependabot_alert_url){
+      const link=document.createElement('a');
+      link.href=q.dependabot_alert_url; link.target='_blank'; link.rel='noopener';
+      link.textContent='Fix'; a.append(link);
+    }
+    tr.append(a); body.append(tr);
+  });
+}
+
+function renderProcesses(list){
+  const body=$('#bp-body'); body.innerHTML='';
+  if(!list.length){
+    const tr=el('tr'),td=el('td'); td.colSpan=8; td.className='empty';
+    td.innerHTML='<b>No business context yet.</b>Add a process above to derive criticality from business attributes instead of a guess.';
+    tr.append(td); body.append(tr); return;
+  }
+  list.forEach(p=>{
+    const tr=el('tr');
+    tr.append(el('td','repo',p.name));
+    tr.append(el('td','',(p.repositories||[]).map(short).join(', ')||'\u2014'));
+    tr.append(el('td','',p.revenue_dependency));
+    tr.append(el('td','',p.customer_facing?'Yes':'No'));
+    tr.append(el('td','',p.availability_requirement));
+    tr.append(el('td','',p.data_sensitivity));
+    tr.append(el('td','',(p.regulatory_scope||[]).join(', ')||'\u2014'));
+    tr.append(el('td','meta',p.source_document||'\u2014'));
+    body.append(tr);
+  });
+}
+
+function renderRepos(list){
+  const body=$('#repo-body'); body.innerHTML='';
+  const pick=$('#p-repo'); pick.innerHTML='<option value="">Select a repository\u2026</option>';
+  list.forEach(r=>{
+    const tr=el('tr');
+    tr.append(el('td','repo',r.name));
+    const bp=el('td');
+    if((r.business_processes||[]).length) bp.textContent=r.business_processes.join(', ');
+    else bp.innerHTML='<span class="tag t-HIGH">unknown risk \u2014 not mapped</span>';
+    tr.append(bp);
+    tr.append(el('td','',(r.regulatory_scope||[]).join(', ')||'\u2014'));
+    tr.append(el('td','num',num(r.open_findings)));
+    tr.append(el('td','meta',r.last_ingested_at?r.last_ingested_at.slice(0,16).replace('T',' '):'never'));
+    body.append(tr);
+    const o=document.createElement('option'); o.value=r.id; o.textContent=r.full_name; pick.append(o);
+  });
+}
+
+function renderImpact(im){
+  const ops=im.operations, biz=im.business;
+  statList('#impact-ops',[
+    ['Open',num(ops.open),'risk'],
+    ['Fixed',num(ops.resolved),'good'],
+    ['Fix rate',(ops.fix_rate*100).toFixed(2)+'%',''],
+    ['Mean time to fix', ops.mttr_hours==null?'not yet measurable':ops.mttr_hours+' h','',
+     ops.mttr_sample_size?`across ${ops.mttr_sample_size} fixed`:''],
+  ]);
+  statList('#impact-biz',[
+    ['Business risk open',num(biz.business_risk_open),'risk'],
+    ['Business risk removed',num(biz.business_risk_eliminated),'good'],
+    ['Risk reduced',biz.risk_reduction_pct+'%',''],
+    ['Processes protected',num(biz.processes_protected),'good'],
+    ['Processes exposed',num(biz.processes_at_risk),'risk'],
+    ['Regulated repos exposed',num(biz.repositories_in_regulatory_scope_with_open_findings),'risk'],
+  ]);
+  const box=$('#at-risk');
+  box.innerHTML = (biz.at_risk_process_names||[]).length
+    ? biz.at_risk_process_names.map(n=>`<span class="tag t-HIGH" style="margin:0 6px 6px 0">${n}</span>`).join('')
+    : '<b>Every mapped process is clear.</b>No open finding affects a business process.';
+}
+
+function renderQuality(list){
+  const body=$('#quality-body'); body.innerHTML='';
+  list.forEach(q=>{
+    const tr=el('tr');
+    tr.append(el('td','repo',short(q.repository)));
+    tr.append(el('td','meta',q.source||'\u2014'));
+    tr.append(el('td','num',q.score==null?'\u2014':(q.score*100).toFixed(0)+'%'));
+    const g=el('td');
+    g.innerHTML=q.passed?'<span class="tag t-ok">passed</span>'
+                        :'<span class="tag t-CRITICAL">below threshold</span>';
+    tr.append(g);
+    tr.append(el('td','',q.has_dependency_chains?'Available':'Flat inventory'));
+    body.append(tr);
+  });
+}
+
+$('#b-addbp').onclick=async()=>{
+  const name=$('#p-name').value.trim();
+  if(!name){ toast('Give the process a name first.'); return; }
+  try{
+    const created=await api('/api/business-processes',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name,
+        owner:$('#p-owner').value.trim()||null,
+        revenue_dependency:$('#p-rev').value,
+        customer_facing:$('#p-cust').value==='true',
+        availability_requirement:$('#p-avail').value,
+        data_sensitivity:$('#p-data').value,
+        regulatory_scope:$('#p-reg').value.trim()||null,
+        source_document:$('#p-doc').value.trim()||null,
+        source_reference:$('#p-ref').value.trim()||null})});
+    const repoId=$('#p-repo').value;
+    if(repoId){
+      const linked=await api('/api/business-processes/link',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({process_id:created.id,
+          repository_id:Number(repoId),role:'implements'})});
+      toast(`Saved ${name} and rescored ${num(linked.rescored_findings)} findings.`);
+    } else {
+      toast(`Saved ${name}. Map it to a repository to rescore its findings.`);
+    }
+    ['p-name','p-owner','p-reg','p-doc','p-ref'].forEach(i=>$('#'+i).value='');
+    await loadAll();
+  }catch(e){ toast('Could not save: '+e.message,7000); }
+};
+
+['f-state','f-tier','f-dedupe'].forEach(i=>$('#'+i).onchange=()=>loadQueue());
+$('#f-text').oninput=()=>renderQueue();
+
+async function loadQueue(){
+  STATE.exposures=await api(`/api/exposures?state=${$('#f-state').value}`
+    +`&limit=500&dedupe=${$('#f-dedupe').checked}`);
+  renderQueue();
+}
+
+async function loadAll(){
+  try{
+    const h=await api('/api/health');
+    $('#org').textContent=h.org||'not configured';
+    $('#n-bp').textContent=h.business_processes;
+    $('#n-repo').textContent=h.repositories;
+    $('#n-queue').textContent=h.exposures;
+
+    const [f,im,repos,procs,qual]=await Promise.all([
+      api('/api/triage-funnel'),api('/api/impact'),api('/api/repositories'),
+      api('/api/business-processes'),api('/api/sbom/quality')]);
+    renderFunnel(f);
+    statList('#overview-stats',[
+      ['Open findings',num(im.operations.open),''],
+      ['Business-critical',num(im.operations.open_by_tier.CRITICAL||0),'risk'],
+      ['Quick wins available',num(f.patch_level_quick_wins),'good'],
+      ['In regulatory scope',num(f.in_regulatory_scope),''],
+      ['Fixed so far',num(im.operations.resolved),'good'],
+      ['Time to fix', im.operations.mttr_hours==null?'\u2014':im.operations.mttr_hours+' h','',
+       im.operations.mttr_sample_size?`across ${im.operations.mttr_sample_size}`:'none yet'],
+    ]);
+    renderImpact(im); renderRepos(repos); renderProcesses(procs); renderQuality(qual);
+    await loadQueue();
+    const quick=await api('/api/quick-wins?limit=25');
+    $('#n-quick').textContent=quick.length;
+    renderQuick(quick);
+  }catch(e){
+    toast('Cannot reach the analyzer at '+API+'. Start it with: uvicorn sbom_c2.api:app',9000);
+  }
+}
+loadAll();
+</script>
+</body>
+</html>

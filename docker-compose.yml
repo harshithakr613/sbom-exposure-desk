@@ -1,0 +1,33 @@
+# PostgreSQL for the deployed configuration.
+#
+# The application runs on SQLite by default and needs no server. This file
+# exists so the PostgreSQL deployment described in the architecture can be
+# demonstrated:
+#
+#   docker compose up -d
+#   export DATABASE_URL=postgresql+psycopg://sbom:sbom@localhost:5432/sbom_c2
+#   uvicorn sbom_c2.api:app --reload
+#
+# No application code changes: the SQLAlchemy models are identical against
+# either engine.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sbom_c2_postgres
+    environment:
+      POSTGRES_USER: sbom
+      POSTGRES_PASSWORD: sbom
+      POSTGRES_DB: sbom_c2
+    ports:
+      - "5432:5432"
+    volumes:
+      - sbom_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sbom -d sbom_c2"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  sbom_pgdata:

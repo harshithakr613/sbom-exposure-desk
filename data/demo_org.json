@@ -1,0 +1,489 @@
+{
+  "_comment": "Demonstration organisation definition. Repositories deliberately span the full range from revenue-critical and regulated to non-critical internal, so the prioritisation model has a meaningful spread to act on. Every pinned version below is a real, published vulnerability.",
+  "repositories": [
+    {
+      "name": "payments-api",
+      "description": "Card payment authorisation and settlement service",
+      "fork_from": "expressjs/express",
+      "manifest": "package.json",
+      "pins": {
+        "lodash": "4.17.19",
+        "minimist": "1.2.5",
+        "axios": "0.21.0"
+      },
+      "known_cves": [
+        "CVE-2021-23337",
+        "CVE-2021-44906",
+        "CVE-2021-3749"
+      ]
+    },
+    {
+      "name": "customer-auth-service",
+      "description": "Customer login, session and token issuance",
+      "fork_from": "auth0/node-jsonwebtoken",
+      "manifest": "package.json",
+      "pins": {
+        "jsonwebtoken": "8.5.1",
+        "cross-spawn": "7.0.3"
+      },
+      "known_cves": [
+        "CVE-2022-23529",
+        "CVE-2024-21538"
+      ]
+    },
+    {
+      "name": "order-fulfilment",
+      "description": "Order orchestration and warehouse dispatch",
+      "fork_from": "pallets/flask",
+      "manifest": "requirements.txt",
+      "pins": {
+        "Django": "3.2.4",
+        "requests": "2.19.1"
+      },
+      "known_cves": [
+        "CVE-2021-33203",
+        "CVE-2018-18074"
+      ]
+    },
+    {
+      "name": "patient-records-api",
+      "description": "Clinical record retrieval service",
+      "fork_from": "psf/requests",
+      "manifest": "requirements.txt",
+      "pins": {
+        "PyYAML": "5.3.1",
+        "Jinja2": "2.11.2",
+        "urllib3": "1.24.1"
+      },
+      "known_cves": [
+        "CVE-2020-14343",
+        "CVE-2020-28493",
+        "CVE-2019-11324"
+      ]
+    },
+    {
+      "name": "marketing-site",
+      "description": "Public marketing and campaign landing pages",
+      "fork_from": "chalk/chalk",
+      "manifest": "package.json",
+      "pins": {
+        "lodash": "4.17.19"
+      },
+      "known_cves": [
+        "CVE-2021-23337"
+      ]
+    },
+    {
+      "name": "internal-logging-utils",
+      "description": "Shared internal logging helper library",
+      "fork_from": "google/gson",
+      "manifest": "pom.xml",
+      "pins": {
+        "org.apache.logging.log4j:log4j-core": "2.14.1"
+      },
+      "known_cves": [
+        "CVE-2021-44228"
+      ]
+    },
+    {
+      "name": "analytics-batch",
+      "description": "Nightly internal analytics aggregation jobs",
+      "fork_from": "pallets/click",
+      "manifest": "requirements.txt",
+      "pins": {
+        "PyYAML": "5.3.1"
+      },
+      "known_cves": [
+        "CVE-2020-14343"
+      ]
+    },
+    {
+      "name": "legacy-reporting",
+      "description": "Deprecated internal reporting tool, minimal usage",
+      "fork_from": "apache/commons-lang",
+      "manifest": "pom.xml",
+      "pins": {
+        "org.springframework:spring-beans": "5.3.17",
+        "org.springframework:spring-webmvc": "5.3.17"
+      },
+      "known_cves": [
+        "CVE-2022-22965"
+      ]
+    },
+    {
+      "name": "checkout-web",
+      "description": "Customer-facing checkout and cart experience",
+      "fork_from": "reduxjs/redux",
+      "manifest": "package.json",
+      "pins": {
+        "json5": "2.2.0",
+        "lodash": "4.17.19"
+      },
+      "known_cves": [
+        "CVE-2022-46175",
+        "CVE-2021-23337"
+      ]
+    },
+    {
+      "name": "fraud-detection",
+      "description": "Real-time transaction fraud scoring",
+      "fork_from": "pallets/jinja",
+      "manifest": "requirements.txt",
+      "pins": {
+        "cryptography": "3.3.1",
+        "urllib3": "1.26.4"
+      },
+      "known_cves": [
+        "CVE-2020-36242",
+        "CVE-2021-33503"
+      ]
+    },
+    {
+      "name": "billing-batch",
+      "description": "Nightly invoicing and settlement runs",
+      "fork_from": "FasterXML/jackson-core",
+      "manifest": "pom.xml",
+      "pins": {
+        "com.fasterxml.jackson.core:jackson-databind": "2.13.0"
+      },
+      "known_cves": [
+        "CVE-2020-36518"
+      ]
+    },
+    {
+      "name": "notifications-service",
+      "description": "Transactional email and SMS delivery",
+      "fork_from": "sindresorhus/got",
+      "manifest": "package.json",
+      "pins": {
+        "tough-cookie": "4.1.2",
+        "semver": "7.3.7"
+      },
+      "known_cves": [
+        "CVE-2023-26136",
+        "CVE-2022-25883"
+      ]
+    },
+    {
+      "name": "partner-api-gateway",
+      "description": "Outbound integrations with partner systems",
+      "fork_from": "axios/axios",
+      "manifest": "package.json",
+      "pins": {
+        "follow-redirects": "1.15.0"
+      },
+      "known_cves": [
+        "CVE-2023-26159"
+      ]
+    },
+    {
+      "name": "data-export-service",
+      "description": "Customer data export and portability requests",
+      "fork_from": "encode/httpx",
+      "manifest": "requirements.txt",
+      "pins": {
+        "certifi": "2022.9.24",
+        "PyYAML": "5.3.1"
+      },
+      "known_cves": [
+        "CVE-2022-23491",
+        "CVE-2020-14343"
+      ]
+    },
+    {
+      "name": "hr-payroll",
+      "description": "Employee payroll processing",
+      "fork_from": "psf/black",
+      "manifest": "requirements.txt",
+      "pins": {
+        "PyJWT": "1.7.1",
+        "Jinja2": "2.11.2"
+      },
+      "known_cves": [
+        "CVE-2022-29217",
+        "CVE-2020-28493"
+      ]
+    },
+    {
+      "name": "audit-log-archive",
+      "description": "Long-term retention of audit records",
+      "fork_from": "junit-team/junit4",
+      "manifest": "pom.xml",
+      "pins": {
+        "org.apache.commons:commons-text": "1.9"
+      },
+      "known_cves": [
+        "CVE-2022-42889"
+      ]
+    },
+    {
+      "name": "internal-devtools",
+      "description": "Assorted developer tooling scripts",
+      "fork_from": "sindresorhus/execa",
+      "manifest": "package.json",
+      "pins": {
+        "minimist": "1.2.5"
+      },
+      "known_cves": [
+        "CVE-2021-44906"
+      ]
+    },
+    {
+      "name": "docs-site",
+      "description": "Engineering documentation site",
+      "fork_from": "apache/commons-io",
+      "manifest": "pom.xml",
+      "pins": {
+        "org.apache.logging.log4j:log4j-core": "2.14.1"
+      },
+      "known_cves": [
+        "CVE-2021-44228"
+      ]
+    }
+  ],
+  "business_processes": [
+    {
+      "name": "Payment Processing",
+      "description": "Authorises and settles customer card payments",
+      "owner": "Payments Engineering",
+      "revenue_dependency": "direct",
+      "customer_facing": true,
+      "availability_requirement": "critical",
+      "data_sensitivity": "regulated",
+      "regulatory_scope": "PCI-DSS,GDPR",
+      "source_document": "BRD-PAY-001 Payment Platform",
+      "source_reference": "s.3.1 Business Criticality; s.5 Compliance Scope",
+      "repositories": [
+        "payments-api"
+      ]
+    },
+    {
+      "name": "Customer Authentication",
+      "description": "Authenticates customers and issues session tokens",
+      "owner": "Identity Engineering",
+      "revenue_dependency": "direct",
+      "customer_facing": true,
+      "availability_requirement": "critical",
+      "data_sensitivity": "regulated",
+      "regulatory_scope": "GDPR",
+      "source_document": "BRD-IAM-004 Customer Identity",
+      "source_reference": "s.2.4 Availability; s.6 Data Classification",
+      "repositories": [
+        "customer-auth-service"
+      ]
+    },
+    {
+      "name": "Order Fulfilment",
+      "description": "Converts paid orders into dispatched shipments",
+      "owner": "Commerce Engineering",
+      "revenue_dependency": "direct",
+      "customer_facing": true,
+      "availability_requirement": "high",
+      "data_sensitivity": "confidential",
+      "regulatory_scope": "",
+      "source_document": "BRD-ORD-002 Order Management",
+      "source_reference": "s.3 Service Levels",
+      "repositories": [
+        "order-fulfilment"
+      ]
+    },
+    {
+      "name": "Patient Records Access",
+      "description": "Serves clinical records to authorised practitioners",
+      "owner": "Health Platform",
+      "revenue_dependency": "indirect",
+      "customer_facing": false,
+      "availability_requirement": "high",
+      "data_sensitivity": "regulated",
+      "regulatory_scope": "HIPAA,GDPR",
+      "source_document": "BRD-HLT-011 Clinical Records",
+      "source_reference": "s.4 Regulatory Obligations",
+      "repositories": [
+        "patient-records-api"
+      ]
+    },
+    {
+      "name": "Marketing Web Presence",
+      "description": "Public campaign and brand pages",
+      "owner": "Marketing Technology",
+      "revenue_dependency": "indirect",
+      "customer_facing": true,
+      "availability_requirement": "medium",
+      "data_sensitivity": "public",
+      "regulatory_scope": "",
+      "source_document": "BRD-MKT-007 Web Presence",
+      "source_reference": "s.2 Scope",
+      "repositories": [
+        "marketing-site"
+      ]
+    },
+    {
+      "name": "Internal Logging",
+      "description": "Shared logging utilities used by internal services",
+      "owner": "Platform Engineering",
+      "revenue_dependency": "none",
+      "customer_facing": false,
+      "availability_requirement": "low",
+      "data_sensitivity": "internal",
+      "regulatory_scope": "",
+      "source_document": "BRD-PLT-020 Internal Tooling",
+      "source_reference": "s.1 Purpose",
+      "repositories": [
+        "internal-logging-utils"
+      ]
+    },
+    {
+      "name": "Internal Analytics",
+      "description": "Overnight batch reporting for internal stakeholders",
+      "owner": "Data Engineering",
+      "revenue_dependency": "none",
+      "customer_facing": false,
+      "availability_requirement": "low",
+      "data_sensitivity": "internal",
+      "regulatory_scope": "",
+      "source_document": "BRD-DAT-013 Analytics Platform",
+      "source_reference": "s.2 Business Impact",
+      "repositories": [
+        "analytics-batch"
+      ]
+    },
+    {
+      "name": "Legacy Reporting",
+      "description": "Deprecated reporting tool retained for occasional use",
+      "owner": "Data Engineering",
+      "revenue_dependency": "none",
+      "customer_facing": false,
+      "availability_requirement": "low",
+      "data_sensitivity": "internal",
+      "regulatory_scope": "",
+      "source_document": "BRD-DAT-002 Legacy Reporting",
+      "source_reference": "s.7 Decommissioning",
+      "repositories": [
+        "legacy-reporting"
+      ]
+    },
+    {
+      "name": "Checkout Experience",
+      "description": "Cart, checkout and order placement",
+      "owner": "Commerce Engineering",
+      "revenue_dependency": "direct",
+      "customer_facing": true,
+      "availability_requirement": "critical",
+      "data_sensitivity": "regulated",
+      "regulatory_scope": "PCI-DSS,GDPR",
+      "source_document": "BRD-ORD-005 Checkout Platform",
+      "source_reference": "s.2.1 Criticality; s.6 Compliance",
+      "repositories": [
+        "checkout-web"
+      ]
+    },
+    {
+      "name": "Fraud Detection",
+      "description": "Scores transactions for fraud before settlement",
+      "owner": "Risk Engineering",
+      "revenue_dependency": "direct",
+      "customer_facing": false,
+      "availability_requirement": "critical",
+      "data_sensitivity": "regulated",
+      "regulatory_scope": "PCI-DSS",
+      "source_document": "BRD-RSK-003 Fraud Platform",
+      "source_reference": "s.4 Availability and Impact",
+      "repositories": [
+        "fraud-detection"
+      ]
+    },
+    {
+      "name": "Billing Operations",
+      "description": "Invoicing, settlement and revenue recognition",
+      "owner": "Finance Systems",
+      "revenue_dependency": "direct",
+      "customer_facing": false,
+      "availability_requirement": "high",
+      "data_sensitivity": "regulated",
+      "regulatory_scope": "PCI-DSS,SOX",
+      "source_document": "BRD-FIN-008 Billing",
+      "source_reference": "s.3 Financial Impact",
+      "repositories": [
+        "billing-batch"
+      ]
+    },
+    {
+      "name": "Customer Notifications",
+      "description": "Transactional messaging to customers",
+      "owner": "Platform Engineering",
+      "revenue_dependency": "indirect",
+      "customer_facing": true,
+      "availability_requirement": "high",
+      "data_sensitivity": "confidential",
+      "regulatory_scope": "GDPR",
+      "source_document": "BRD-PLT-014 Messaging",
+      "source_reference": "s.2 Service Levels",
+      "repositories": [
+        "notifications-service"
+      ]
+    },
+    {
+      "name": "Partner Integrations",
+      "description": "Data exchange with third-party partners",
+      "owner": "Integration Engineering",
+      "revenue_dependency": "direct",
+      "customer_facing": false,
+      "availability_requirement": "high",
+      "data_sensitivity": "confidential",
+      "regulatory_scope": "",
+      "source_document": "BRD-INT-006 Partner Gateway",
+      "source_reference": "s.3 Business Criticality",
+      "repositories": [
+        "partner-api-gateway"
+      ]
+    },
+    {
+      "name": "Data Subject Requests",
+      "description": "Fulfils customer data export and erasure requests",
+      "owner": "Privacy Engineering",
+      "revenue_dependency": "none",
+      "customer_facing": true,
+      "availability_requirement": "medium",
+      "data_sensitivity": "regulated",
+      "regulatory_scope": "GDPR",
+      "source_document": "BRD-PRV-002 Data Portability",
+      "source_reference": "s.5 Regulatory Obligations",
+      "repositories": [
+        "data-export-service"
+      ]
+    },
+    {
+      "name": "Payroll Processing",
+      "description": "Employee salary and tax processing",
+      "owner": "People Systems",
+      "revenue_dependency": "none",
+      "customer_facing": false,
+      "availability_requirement": "medium",
+      "data_sensitivity": "regulated",
+      "regulatory_scope": "GDPR",
+      "source_document": "BRD-HR-001 Payroll",
+      "source_reference": "s.4 Data Classification",
+      "repositories": [
+        "hr-payroll"
+      ]
+    },
+    {
+      "name": "Audit and Compliance Archive",
+      "description": "Retains audit records for statutory periods",
+      "owner": "Compliance",
+      "revenue_dependency": "none",
+      "customer_facing": false,
+      "availability_requirement": "low",
+      "data_sensitivity": "regulated",
+      "regulatory_scope": "SOX",
+      "source_document": "BRD-CMP-009 Records Retention",
+      "source_reference": "s.2 Retention Requirements",
+      "repositories": [
+        "audit-log-archive"
+      ]
+    }
+  ],
+  "_fork_note": "In fork mode the pinned manifest is written to a capstone-demo/ subdirectory so the upstream project's own manifest is left untouched. GitHub's dependency graph scans manifests anywhere in the repository, so both the real transitive dependency tree and the deliberately pinned vulnerable versions are detected.",
+  "_unmapped_note": "internal-devtools and docs-site are deliberately left without a business process mapping. They exercise the unmapped-repository path, where criticality is scored as UNKNOWN at the median rather than LOW, so an unmapped asset surfaces for mapping instead of sinking down the queue.",
+  "_scope_note_xz": "CVE-2024-3094 (XZ Utils) is deliberately absent. It is a compromise of a Linux system library distributed through OS package managers, not an application dependency declared in package.json, requirements.txt or pom.xml. It therefore falls outside the scope of SBOM-based application dependency analysis, and is reported as a scope limitation rather than a detection failure."
+}

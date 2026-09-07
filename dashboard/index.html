@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Exposure Desk</title>
+<style>
+:root{
+  --navy:#101A34; --navy-2:#17233F; --navy-3:#1F2D4D;
+  --edge:#2A3856; --edge-2:#3A4A6B;
+  --bg:#F4F6FA; --card:#FFFFFF; --sunken:#EDF0F6;
+  --ink:#0E1526; --ink2:#59627A; --ink3:#8C95AC;
+  --line:#E1E6EF;
+  --red:#C8382A; --red-bg:#FDECEA;
+  --amber:#B07A08; --amber-bg:#FDF3E0;
+  --green:#1D7A4D; --green-bg:#E7F5ED;
+  --blue:#2B5CE6;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans);
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:-.015em}
+button,input,select{font:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.app{display:grid;grid-template-columns:210px 1fr;min-height:100vh}
+aside{background:var(--navy);color:#C7D0E4;position:sticky;top:0;height:100vh;
+  display:flex;flex-direction:column}
+.logo{padding:20px;border-bottom:1px solid var(--edge)}
+.logo h1{color:#fff;font-size:17px;letter-spacing:-.02em}
+.logo p{margin:6px 0 0;font-size:11.5px;font-family:var(--mono);color:#7E8CAD;word-break:break-all}
+.menu{padding:12px 0;flex:1}
+.menu button{display:flex;width:100%;justify-content:space-between;align-items:center;gap:8px;
+  padding:10px 20px;background:none;border:0;border-left:3px solid transparent;
+  color:#A9B5CF;font-size:14px;cursor:pointer;text-align:left}
+.menu button:hover{background:var(--navy-2);color:#fff}
+.menu button.on{background:var(--navy-2);color:#fff;border-left-color:var(--red);font-weight:600}
+.menu .n{font-size:11.5px;color:#7E8CAD}
+.foot{padding:14px 20px;border-top:1px solid var(--edge);font-size:12px;color:#7E8CAD}
+.live{display:inline-block;width:7px;height:7px;border-radius:50%;background:#2FBF71;margin-right:7px}
+.live.off{background:var(--red)}
+
+main{min-width:0}
+.top{background:var(--navy-2);padding:13px 30px;display:flex;gap:10px;align-items:center;
+  position:sticky;top:0;z-index:9}
+.top .grow{flex:1}
+.b{border:1px solid var(--edge-2);background:var(--navy-3);color:#DCE3F2;padding:7px 13px;
+  border-radius:5px;cursor:pointer;font-size:13.5px;white-space:nowrap}
+.b:hover{background:var(--edge)}
+.b[disabled]{opacity:.5;cursor:progress}
+.b.red{background:var(--red);border-color:var(--red);color:#fff}
+.b.red:hover{background:#a92e22}
+.pad{padding:26px 30px 70px;max-width:1240px}
+.view{display:none}.view.on{display:block}
+.hd{margin-bottom:22px}
+.hd h2{font-size:23px}
+.hd p{margin:6px 0 0;color:var(--ink2);font-size:14px;max-width:64ch}
+
+/* -------------------------------------------------------------- tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px;margin-bottom:22px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px}
+.tile .k{font-size:12.5px;color:var(--ink2);margin-bottom:6px}
+.tile .v{font-size:27px;font-weight:680;line-height:1.05}
+.tile .d{font-size:12.5px;margin-top:5px;color:var(--ink3)}
+.tile.red .v{color:var(--red)} .tile.green .v{color:var(--green)}
+.up{color:var(--green)} .down{color:var(--red)}
+
+/* -------------------------------------------------------------- panel */
+.p{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:22px}
+.p>h3{padding:14px 18px;font-size:14px;border-bottom:1px solid var(--line);
+  display:flex;justify-content:space-between;align-items:center;gap:12px}
+.p>h3 .sub{font-weight:400;font-size:12.5px;color:var(--ink3)}
+.bars{padding:18px}
+.brow{display:grid;grid-template-columns:120px 1fr 66px;gap:14px;align-items:center;padding:6px 0}
+.brow .l{font-size:13px;color:var(--ink2)}
+.brow .t{height:20px;background:var(--sunken);border-radius:3px;overflow:hidden}
+.brow .t i{display:block;height:100%;background:var(--navy);border-radius:3px;transition:width .45s}
+.brow.crit .t i{background:var(--red)}
+.brow .v{text-align:right;font-weight:650;font-size:15px}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;padding:10px 16px;font-size:12.5px;font-weight:620;color:var(--ink2);
+  background:var(--bg);border-bottom:1px solid var(--line)}
+td{padding:11px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr.r{cursor:pointer} tr.r:hover td{background:var(--sunken)}
+td.n{text-align:right}
+.rk{font-family:var(--mono);color:var(--ink3);font-size:12.5px}
+.mv{font-size:12.5px;font-weight:620}
+.nm{font-weight:620}
+.mo{font-family:var(--mono);font-size:12.5px;color:var(--ink2)}
+.chip{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11.5px;white-space:nowrap}
+.c-CRITICAL{background:var(--red-bg);color:var(--red)}
+.c-HIGH{background:var(--amber-bg);color:var(--amber)}
+.c-MEDIUM{background:var(--sunken);color:var(--ink2)}
+.c-LOW{background:var(--sunken);color:var(--ink3)}
+.c-fixed{background:var(--green-bg);color:var(--green)}
+.filters{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);
+  flex-wrap:wrap;align-items:center}
+.filters select,.filters input{padding:6px 10px;border:1px solid var(--line);border-radius:5px;
+  background:var(--card);font-size:13.5px}
+.filters .grow{flex:1;min-width:150px}
+a.gh{color:var(--blue);text-decoration:none}
+a.gh:hover{text-decoration:underline}
+
+/* ------------------------------------------------------------- detail */
+.back{background:none;border:0;color:var(--blue);cursor:pointer;padding:0;font-size:13.5px;margin-bottom:14px}
+.dtop{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;
+  background:var(--navy);color:#fff;border-radius:8px;padding:22px 24px;margin-bottom:18px}
+.dtop h2{font-size:21px;color:#fff}
+.dtop .meta{margin:6px 0 0;font-family:var(--mono);font-size:12.5px;color:#93A0BE}
+.dtop .sc{text-align:right}
+.dtop .sc .v{font-size:34px;font-weight:680;line-height:1}
+.dtop .sc .was{font-size:12.5px;color:#93A0BE;margin-top:4px}
+.stack{display:flex;height:11px;border-radius:4px;overflow:hidden;background:var(--sunken);margin:0 0 10px}
+.stack i{display:block}
+.keys{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink2)}
+.keys span{display:flex;gap:6px;align-items:center}
+.keys b{width:10px;height:10px;border-radius:2px;display:inline-block}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+dl.kv{margin:0;font-size:13.5px;padding:4px 18px 16px}
+dl.kv div{display:flex;justify-content:space-between;gap:14px;padding:6px 0;border-bottom:1px solid var(--line)}
+dl.kv div:last-child{border-bottom:0}
+dl.kv dt{color:var(--ink2)} dl.kv dd{margin:0;text-align:right;font-weight:600}
+.tl{padding:6px 18px 18px}
+.tl .e{display:grid;grid-template-columns:14px 1fr;gap:12px;padding-bottom:14px;position:relative}
+.tl .e::before{content:"";position:absolute;left:6px;top:16px;bottom:0;width:1px;background:var(--line)}
+.tl .e:last-child::before{display:none}
+.tl .dot{width:12px;height:12px;border-radius:50%;background:var(--green);margin-top:4px}
+.tl .dot.wait{background:var(--card);border:2px solid var(--line)}
+.tl h5{margin:0;font-size:13.5px}
+.tl p{margin:2px 0 0;font-size:12.5px;color:var(--ink2)}
+.acts{padding:16px 18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.acts a.btn{display:inline-block;text-decoration:none;background:var(--navy);color:#fff;
+  border:1px solid var(--navy);padding:8px 14px;border-radius:5px;font-size:13.5px}
+.acts a.btn:hover{background:var(--navy-3)}
+
+/* --------------------------------------------------------------- form */
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:15px;padding:18px}
+label{display:block;font-size:12.5px;color:var(--ink2);margin-bottom:5px}
+.form input,.form select{width:100%;padding:8px 10px;border:1px solid var(--line);
+  border-radius:5px;background:var(--card);font-size:14px}
+.form .wide{grid-column:1/-1}
+.form .foot2{grid-column:1/-1;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.bsub{background:var(--navy);border:1px solid var(--navy);color:#fff;padding:9px 16px;
+  border-radius:5px;cursor:pointer;font-size:14px}
+.bsub:hover{background:var(--navy-3)}
+.hint{font-size:12.5px;color:var(--ink3);margin:0}
+.blank{padding:32px 18px;color:var(--ink2)}
+.blank b{display:block;color:var(--ink);margin-bottom:4px}
+#toast{position:fixed;right:22px;bottom:22px;background:var(--navy);color:#fff;padding:12px 17px;
+  border-radius:6px;font-size:13.5px;max-width:400px;opacity:0;transform:translateY(8px);
+  transition:.16s;pointer-events:none;z-index:30}
+#toast.on{opacity:1;transform:none}
+@media(max-width:900px){
+  .app{grid-template-columns:1fr}
+  aside{position:static;height:auto}
+  .pad,.top{padding-left:16px;padding-right:16px}
+  .two{grid-template-columns:1fr}
+}
+
+/* explain markers ------------------------------------------------------ */
+.i{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;
+  border-radius:50%;border:1px solid var(--ink3);color:var(--ink3);font-size:10.5px;
+  font-weight:700;margin-left:6px;cursor:help;position:relative;vertical-align:middle;
+  font-style:normal;flex:none}
+.i:hover,.i:focus{border-color:var(--navy);color:var(--navy)}
+.i .tip{display:none;position:absolute;bottom:22px;left:50%;transform:translateX(-50%);
+  background:var(--navy);color:#fff;padding:10px 13px;border-radius:6px;width:270px;
+  font-size:12.5px;font-weight:400;line-height:1.5;text-align:left;z-index:40;
+  box-shadow:0 8px 24px rgba(16,26,52,.22)}
+.i:hover .tip,.i:focus .tip{display:block}
+.i .tip::after{content:"";position:absolute;top:100%;left:50%;margin-left:-5px;
+  border:5px solid transparent;border-top-color:var(--navy)}
+.tile .k{display:flex;align-items:center}
+.tile.link{cursor:pointer}
+.tile.link:hover{border-color:var(--navy);box-shadow:0 2px 10px rgba(16,26,52,.07)}
+.tile.link .go{font-size:12px;color:var(--blue);margin-top:6px}
+
+/* run banner ----------------------------------------------------------- */
+#run{display:none;padding:12px 30px;background:#0E2A4A;color:#DCE7F7;font-size:13.5px;
+  align-items:center;gap:12px;border-bottom:1px solid var(--edge)}
+#run.on{display:flex}
+#run.ok{background:#12492F} #run.bad{background:#5B1B14}
+.spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;
+  border-radius:50%;animation:sp .8s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+#run .x{margin-left:auto;background:none;border:0;color:inherit;cursor:pointer;font-size:16px}
+.fresh{font-size:12px;color:#7E8CAD;padding:0 30px 0 0}
+tr.r:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.warnbox{background:var(--amber-bg);border:1px solid #E8CFA0;border-radius:8px;
+  padding:14px 16px;margin-bottom:20px;font-size:13.5px;color:#6B4A05}
+.warnbox b{display:block;margin-bottom:4px}
+.exp-row td{font-size:13.5px}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <div class="logo"><h1>Exposure Desk</h1><p id="org">connecting…</p></div>
+  <div class="menu">
+    <button class="on" data-v="home">Overview</button>
+    <button data-v="find">Findings <span class="n" id="n-find"></span></button>
+    <button data-v="lookup">CVE lookup</button>
+    <button data-v="repos">Repositories <span class="n" id="n-repo"></span></button>
+    <button data-v="ctx">Business context <span class="n" id="n-bp"></span></button>
+    <button data-v="impact">Risk reduction</button>
+    <button data-v="eval">Prioritisation evidence <span class="n" id="n-eval"></span></button>
+  </div>
+  <div class="foot"><span class="live" id="live"></span><span id="livetxt">checking…</span></div>
+</aside>
+
+<main>
+<div class="top">
+  <button class="b" id="b-sync">Scan repositories</button>
+  <button class="b" id="b-corr">Link Dependabot</button>
+  <button class="b red" id="b-refresh">Check for fixes</button>
+  <span class="grow"></span>
+  <span class="fresh" id="fresh"></span>
+</div>
+<div id="run"><span class="spin" id="run-spin"></span><span id="run-msg"></span><button class="x" id="run-x">×</button></div>
+
+<!-- ========================================================== OVERVIEW -->
+<section class="view on" id="v-home"><div class="pad">
+  <div class="hd"><h2 id="hd-title">Loading…</h2>
+    <p id="hd-sub"></p></div>
+  <div class="tiles" id="tiles"></div>
+  <div class="two">
+    <div class="p"><h3>How the list narrows <span class="sub">components to today's work</span></h3>
+      <div class="bars" id="funnel"></div></div>
+    <div class="p"><h3>Open findings by priority</h3>
+      <div class="bars" id="tiers"></div></div>
+  </div>
+  <div class="p"><h3>Findings business context moved most <span class="sub">rank under business-aware scoring against rank by technical severity alone</span></h3>
+    <table><thead><tr><th style="width:56px">Rank</th><th>Repository</th>
+      <th>Business process</th><th>Package</th><th class="n">Score</th>
+      <th class="n">Was <span class="i" tabindex="0">i<span class="tip">The Capstone 1 score, where criticality was a manually assigned tier rather than derived.</span></span></th><th class="n">Moved</th></tr></thead>
+      <tbody id="movers"></tbody></table></div>
+</div></section>
+
+<!-- ========================================================== FINDINGS -->
+<section class="view" id="v-find"><div class="pad">
+  <div class="hd"><h2>Findings</h2>
+    <p>Ranked by business impact. The arrow shows how far each finding moved
+       against ranking by technical severity alone. Click any row for the full record.</p></div>
+  <div class="p">
+    <div class="filters">
+      <select id="f-state"><option value="open">Open</option>
+        <option value="resolved">Fixed</option><option value="all">All</option></select>
+      <select id="f-tier"><option value="">Every priority</option><option>CRITICAL</option>
+        <option>HIGH</option><option>MEDIUM</option><option>LOW</option></select>
+      <input id="f-text" class="grow" placeholder="Search repository, package or CVE">
+      <label style="display:flex;gap:6px;align-items:center;font-size:13px;margin:0">
+        <input type="checkbox" id="f-dd" checked> merge duplicates</label>
+      <span class="hint" id="f-count"></span>
+      <button class="b" id="b-csv" style="background:var(--card);color:var(--ink);border-color:var(--line)">Download CSV</button>
+      <button class="b" id="b-pdf" style="background:var(--card);color:var(--ink);border-color:var(--line)">Download PDF report</button>
+    </div>
+    <p class="hint" style="padding:0 16px 10px;margin:0">Both downloads contain exactly the findings shown by the filters above, in the same order.</p>
+    <table><thead><tr><th style="width:56px">Rank</th><th>Repository</th>
+      <th>Business process</th><th>Package</th><th>Advisory</th>
+      <th class="n">Score <span class="i" tabindex="0">i<span class="tip">Composite of technical severity, exploitation probability and derived business criticality, multiplied by any compliance uplift.</span></span></th><th class="n">Moved <span class="i" tabindex="0">i<span class="tip">Places gained or lost against ranking by technical severity alone. An up arrow means business context raised this finding.</span></span></th><th>Priority</th></tr></thead>
+      <tbody id="f-body"></tbody></table>
+  </div>
+</div></section>
+
+<!-- ============================================================ DETAIL -->
+<section class="view" id="v-detail"><div class="pad" id="detail"></div></section>
+
+<!-- ============================================================= REPOS -->
+<section class="view" id="v-repos"><div class="pad">
+  <div class="hd"><h2>Repositories</h2>
+    <p>Click a repository name to open it on GitHub. A repository with no business
+       process mapped is unknown risk, not low risk.</p></div>
+  <div class="p"><h3>Monitor another repository</h3>
+    <div class="form">
+      <div class="wide"><label>Repository, in owner/name form</label>
+        <input id="add-repo" placeholder="sbom-analyzer-demo/new-service"></div>
+      <div class="foot2"><button class="bsub" id="b-addrepo">Add and scan</button>
+        <p class="hint">The repository must be visible to the configured token. It is scanned immediately and appears below.</p></div>
+    </div></div>
+  <div class="p"><table><thead><tr><th>Repository</th><th>Business process</th>
+    <th>Regulatory scope</th><th class="n">Open findings</th><th>Last scanned</th>
+    <th></th></tr></thead><tbody id="r-body"></tbody></table></div>
+</div></section>
+
+<!-- =========================================================== CONTEXT -->
+<section class="view" id="v-ctx"><div class="pad">
+  <div class="hd"><h2>Business context</h2>
+    <p>A repository does not know what it does for the business. These attributes
+       come from Business Requirements Documents, and criticality is derived from
+       them rather than guessed.</p></div>
+  <div class="p"><h3 id="ctx-head">Add a business process</h3>
+    <div class="form">
+      <div><label>Process name</label><input id="p-name" placeholder="Payment Processing"></div>
+      <div><label>Owner</label><input id="p-owner" placeholder="Payments Engineering"></div>
+      <div><label>Revenue dependency</label><select id="p-rev">
+        <option>none</option><option>indirect</option><option>direct</option></select></div>
+      <div><label>Customer facing</label><select id="p-cust">
+        <option value="false">No</option><option value="true">Yes</option></select></div>
+      <div><label>Availability requirement</label><select id="p-avail">
+        <option>low</option><option>medium</option><option>high</option><option>critical</option></select></div>
+      <div><label>Data sensitivity</label><select id="p-data">
+        <option>public</option><option>internal</option><option>confidential</option>
+        <option>regulated</option></select></div>
+      <div><label>Regulatory scope</label><input id="p-reg" placeholder="PCI-DSS, GDPR"></div>
+      <div><label>Source document</label><input id="p-doc" placeholder="BRD-PAY-001"></div>
+      <div><label>Section</label><input id="p-ref" placeholder="s.3.1 Business Criticality"></div>
+      <div class="wide"><label>Map to repository</label><select id="p-repo"></select></div>
+      <div class="foot2"><button class="bsub" id="b-add">Save and rescore</button>
+        <button class="b" id="b-cancel" style="display:none;background:var(--card);color:var(--ink);border-color:var(--line)">Cancel edit</button>
+        <p class="hint">Every finding on the mapped repository is rescored immediately.</p></div>
+    </div>
+  </div>
+  <div class="p"><h3>Defined processes <span class="sub">click a row to edit — findings rescore on save</span></h3><table><thead><tr><th>Process</th>
+    <th>Repositories</th><th>Revenue</th><th>Customer</th><th>Availability</th>
+    <th>Data</th><th>Regulatory</th><th>Source</th></tr></thead>
+    <tbody id="bp-body"></tbody></table></div>
+</div></section>
+
+
+<!-- ============================================================ LOOKUP -->
+<section class="view" id="v-lookup"><div class="pad">
+  <div class="hd"><h2>CVE lookup</h2>
+    <p>Two questions, one box. Give it an advisory identifier and it reports
+       which repositories are exposed. Give it a package name and it reports
+       where that package is used, at which versions, and whether any copy is
+       vulnerable — which is the answer when someone asks “do we use
+       this anywhere?”</p></div>
+  <div class="p">
+    <div class="filters">
+      <input id="lk-q" class="grow"
+        placeholder="CVE-2021-44228   ·   lodash   ·   pkg:npm/lodash@4.17.19"
+        style="font-family:var(--mono)">
+      <button class="b red" id="lk-go" style="border-radius:5px">Check exposure</button>
+    </div>
+    <p class="hint" style="padding:0 16px 12px;margin:0">Accepts an advisory
+      identifier (CVE, GHSA, PYSEC); a Package URL; a package name; or a version
+      range exactly as an advisory states it — <b>lodash &lt; 4.17.21</b>,
+      <b>log4j-core &lt; 2.15.0</b>, <b>minimist &lt;= 1.2.5</b>. Every component
+      in the estate is evaluated against the bound, so you are not comparing
+      version numbers by eye.</p>
+    <div id="lk-out" class="blank"><b>Nothing checked yet.</b>An advisory has
+      just landed saying a package below some version is affected? Type it the
+      way the advisory states it and see which repositories qualify.</div>
+  </div>
+</div></section>
+
+<!-- ============================================================ IMPACT -->
+<section class="view" id="v-impact"><div class="pad">
+  <div class="hd"><h2>Risk reduction</h2>
+    <p>Measured from resolution timestamps recorded by GitHub, not estimated.</p></div>
+  <div class="tiles" id="im-tiles"></div>
+  <div class="p"><h3>Business processes with open findings <span class="sub">a process is exposed while any repository supporting it has an unresolved finding</span></h3>
+    <table><thead><tr><th>Business process</th><th>Repositories</th><th class="n">Open findings</th><th class="n">Worst score</th><th></th></tr></thead>
+    <tbody id="at-risk"></tbody></table></div>
+  <p><button class="b" id="b-snap" style="background:var(--card);color:var(--ink);border-color:var(--line)">Save snapshot</button></p>
+</div></section>
+
+
+<!-- ============================================================== EVAL -->
+<section class="view" id="v-eval"><div class="pad">
+  <div class="hd"><h2>Prioritisation evidence</h2>
+    <p>Does ranking by business impact actually beat ranking by technical
+       severity? Both orderings contain the same findings, so the only way to
+       tell is to have a person judge what matters, then measure which ordering
+       agrees more closely.</p></div>
+
+  <div class="p"><h3>Step 1 &nbsp;·&nbsp; Grade the sample
+      <span class="sub" id="ev-progress"></span></h3>
+    <div style="padding:16px 18px;border-bottom:1px solid var(--line)">
+      <p style="margin:0 0 12px;font-size:13.5px;color:var(--ink2);max-width:70ch">
+        Judge each finding on <b>what it would cost the business if left
+        unfixed</b> — not on how severe the vulnerability is. Severity is
+        already accounted for elsewhere. The scores are hidden so your judgement
+        stays independent of the model.</p>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--ink2)">
+        <span><b>3</b> fix first — revenue-critical or regulated</span>
+        <span><b>2</b> fix soon — important, not critical</span>
+        <span><b>1</b> scheduled — limited consequence</span>
+        <span><b>0</b> ignore — no meaningful consequence</span>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="b" id="ev-load" style="background:var(--card);color:var(--ink);border-color:var(--line)">Load sample</button>
+        <button class="b" id="ev-suggest" style="background:var(--card);color:var(--ink);border-color:var(--line)">Pre-fill from business attributes</button>
+        <button class="bsub" id="ev-save">Save grading</button>
+        <span class="hint">Pre-fill applies the rubric by process. Review every
+          row before saving — an unreviewed pre-fill makes the evaluation
+          circular, and the judgement is meant to be yours.</span>
+      </div>
+    </div>
+    <table><thead><tr><th>Business process</th><th>Repository</th>
+      <th>Component</th><th>Advisory</th><th style="width:150px">Relevance</th>
+    </tr></thead><tbody id="ev-body"></tbody></table>
+  </div>
+
+  <div class="p"><h3>Step 2 &nbsp;·&nbsp; Measure both rankings</h3>
+    <div style="padding:16px 18px">
+      <button class="bsub" id="ev-run">Run the comparison</button>
+      <span class="hint" style="margin-left:12px">Scores both orderings against
+        your grading using NDCG, and tests whether the result survives a change
+        in the criticality weight.</span>
+    </div>
+    <div id="ev-out"></div>
+  </div>
+</div></section>
+
+</main></div>
+<div id="toast"></div>
+
+<script>
+const API=(location.origin&&location.origin!=='null')?location.origin:'http://127.0.0.1:8000';
+const S={ex:[],quick:[],repos:[],techRank:new Map()};
+const $=s=>document.querySelector(s);
+const el=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;
+  if(x!==undefined)n.textContent=x;return n;};
+const N=n=>(n==null)?'\u2014':Number(n).toLocaleString();
+const shortName=r=>(r||'').split('/').pop();
+
+/* ------------------------------------------------------------- explain */
+const TIPS={
+ open:"Findings whose Dependabot alert or component is still unresolved. One package can produce several findings.",
+ critical:"Composite score of 8.0 or above once business context is applied. These affect revenue-critical, customer-facing or regulated services.",
+ quick:"High business impact and a patch-level upgrade \u2014 backwards compatible by convention, so low risk to merge.",
+ regulated:"Findings on repositories supporting a process in PCI-DSS, GDPR, HIPAA or SOX scope. These carry a score uplift of 10% per regime, capped at 25%.",
+ fixed:"Findings whose Dependabot alert has closed. Detected automatically; nothing is marked fixed by hand.",
+ mttr:"Mean hours from detection to resolution, using the timestamp GitHub recorded when the fix landed. The sample size is shown because an average over three resolutions and over three hundred are different claims.",
+ score:"Composite = (CVSS \u00f7 10 \u00d7 0.5) + (EPSS \u00d7 0.3) + (criticality \u00d7 0.2), then multiplied by the compliance factor. Criticality is derived from business attributes, not assigned by hand.",
+ was:"The Capstone 1 score, where criticality was a manually assigned tier. Kept so the effect of deriving it can be measured.",
+ moved:"Places this finding gained or lost against ranking by technical severity alone. \u25B2 means business context raised it.",
+ crit:"Derived from the business process the repository supports: revenue dependency 0.35, customer-facing 0.25, availability requirement 0.25, data sensitivity 0.15. A repository takes the highest value across its processes, never the average.",
+ riskopen:"The sum of business-aware scores across open findings. An index, not a currency value \u2014 it is monotonic in what matters but does not represent money.",
+ riskgone:"The same index summed over resolved findings: how much business risk remediation actually removed.",
+ exposed:"Business processes with at least one unresolved finding on a repository that supports them.",
+ protected:"Business processes where every supporting repository is clear of open findings.",
+ regrepos:"Repositories in regulatory scope that still carry open findings. These are the ones an auditor would ask about first.",
+ fixrate:"Resolved findings as a proportion of all findings. Low early on is expected; it is the trend that matters.",
+ unmapped:"No business process is mapped, so criticality cannot be derived. Scored at the median as unknown risk rather than low, so it surfaces here instead of sinking down the queue.",
+ effort:"Distance between the installed version and the first patched version. Effort never lowers a finding's risk score \u2014 it only decides what is worth doing next.",
+ direct:"A direct dependency is declared in the manifest. A transitive one arrives underneath something else and is usually invisible to the developer.",
+};
+function tip(key){
+  const w=el('span','i');w.tabIndex=0;w.textContent='i';
+  w.setAttribute('aria-label',TIPS[key]||'');
+  const t=el('span','tip',TIPS[key]||'');w.append(t);return w;
+}
+
+/* ---------------------------------------------------------- run banner */
+function runShow(msg,state){
+  const bar=$('#run');bar.className='on'+(state?' '+state:'');
+  $('#run-msg').textContent=msg;
+  $('#run-spin').style.display=state?'none':'';
+}
+function runHide(){$('#run').className='';}
+$('#run-x').onclick=runHide;
+
+/* ----------------------------------------------------- clickable tiles */
+function gotoFindings(state,tier){
+  $('#f-state').value=state||'open';
+  $('#f-tier').value=tier||'';
+  $('#f-text').value='';
+  show('find');loadQueue();
+}
+
+let tt;const toast=(m,ms=3600)=>{const t=$('#toast');t.textContent=m;t.classList.add('on');
+  clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),ms);};
+async function api(p,o){const r=await fetch(API+p,o);
+  if(!r.ok)throw new Error('server returned '+r.status);return r.json();}
+
+function show(v){
+  document.querySelectorAll('.view').forEach(s=>s.classList.remove('on'));
+  $('#v-'+v).classList.add('on');
+  document.querySelectorAll('.menu button').forEach(b=>
+    b.classList.toggle('on',b.dataset.v===v));
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('.menu button').forEach(b=>b.onclick=()=>show(b.dataset.v));
+
+async function act(btn,busy,path,msg,running){
+  btn.disabled=true;const was=btn.textContent;btn.textContent=busy;
+  document.querySelectorAll('.top .b').forEach(b=>b.disabled=true);
+  runShow(running||busy);
+  const started=Date.now();
+  try{
+    const r=await api(path,{method:'POST'});
+    const secs=Math.round((Date.now()-started)/1000);
+    runShow(msg(r)+'  \u00b7  finished in '+(secs>90?Math.round(secs/60)+' min':secs+'s'),'ok');
+    setTimeout(runHide,9000);
+    if(r.skipped_repositories&&r.skipped_repositories.length)
+      toast(r.skipped_repositories.length+' repositories were skipped: '
+        +r.skipped_repositories.map(shortName).join(', '),9000);
+    if(r.errors&&r.errors.length)
+      toast('Some repositories reported errors: '+r.errors[0],9000);
+    await loadAll();
+  }catch(e){
+    runShow('That did not complete \u2014 '+e.message
+      +'. The server terminal will show the cause.','bad');
+  }finally{
+    btn.disabled=false;btn.textContent=was;
+    document.querySelectorAll('.top .b').forEach(b=>b.disabled=false);
+  }
+}
+$('#b-sync').onclick=e=>{
+  if(!confirm('A full scan reads every repository, queries the vulnerability '
+    +'database for every component and can take ten to fifteen minutes. '
+    +'Continue?'))return;
+  act(e.target,'Scanning\u2026','/api/sync',
+    r=>`Scanned ${r.repositories} repositories, ${N(r.components)} components, `
+      +`${N(r.advisories||0)} advisories. ${N(r.exposures)} new findings.`,
+    'Scanning repositories. This reads every SBOM and queries the vulnerability '
+    +'database \u2014 expect ten to fifteen minutes. You can leave this page open.');
+};
+$('#b-corr').onclick=e=>act(e.target,'Linking\u2026','/api/remediation/correlate',
+  r=>`Read ${N(r.alerts_seen)} Dependabot alerts and matched them to findings.`,
+  'Reading Dependabot alerts across every repository and matching them to '
+  +'findings by advisory and package.');
+$('#b-refresh').onclick=e=>act(e.target,'Checking\u2026','/api/remediation/refresh',
+  r=>r.resolved?`${r.resolved} finding${r.resolved>1?'s are':' is'} now fixed.`
+               :'No findings have been fixed since the last check.',
+  'Re-reading alert state from GitHub to detect findings that have been fixed.');
+$('#b-snap').onclick=e=>act(e.target,'Saving\u2026','/api/impact/snapshot',()=>'Snapshot saved.');
+$('#b-csv').onclick=()=>location.href=API+'/api/export/csv?state='+$('#f-state').value;
+$('#b-pdf').onclick=()=>location.href=API+'/api/report?state='+$('#f-state').value;
+
+const movedCell=m=>{const td=el('td','n');
+  if(m==null||m===0){td.textContent='\u2013';td.style.color='var(--ink3)';}
+  else{td.className='n mv '+(m>0?'up':'down');
+    td.textContent=(m>0?'\u25B2 ':'\u25BC ')+Math.abs(m);}
+  return td;};
+
+function ranks(){
+  const open=S.ex.filter(e=>e.state==='open');
+  const tech=[...open].sort((a,b)=>(b.baseline_score||0)-(a.baseline_score||0));
+  S.techRank=new Map(tech.map((e,i)=>[e.id,i+1]));
+}
+const movedBy=(e,rank)=>{const t=S.techRank.get(e.id);return t?t-rank:null;};
+
+function bars(target,rows,critIdx){
+  const box=$(target);box.innerHTML='';
+  const max=Math.max(...rows.map(r=>r[1]))||1;
+  rows.forEach(([label,value],i)=>{
+    const r=el('div','brow'+(i===critIdx?' crit':''));
+    r.append(el('div','l',label));
+    const t=el('div','t'),f=el('i');
+    f.style.width=Math.max(1,(value/max)*100)+'%';t.append(f);r.append(t);
+    r.append(el('div','v',N(value)));box.append(r);
+  });
+}
+function tiles(sel,items){
+  const g=$(sel);g.innerHTML='';
+  items.forEach(([k,v,cls,d,tipKey,onClick,cta])=>{
+    const t=el('div','tile'+(cls?' '+cls:'')+(onClick?' link':''));
+    const kk=el('div','k',k);
+    if(tipKey)kk.append(tip(tipKey));
+    t.append(kk);t.append(el('div','v',v));
+    if(d)t.append(el('div','d',d));
+    if(onClick){
+      t.append(el('div','go',cta||'View \u2192'));
+      t.tabIndex=0;t.setAttribute('role','button');
+      t.onclick=onClick;
+      t.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onClick();}};
+    }
+    g.append(t);});
+}
+
+/* ------------------------------------------------------------- OVERVIEW */
+function renderHome(f,im){
+  const crit=im.operations.open_by_tier.CRITICAL||0;
+  $('#hd-title').textContent=`${N(crit)} findings threaten a business-critical service`;
+  $('#hd-sub').textContent=
+    `Out of ${N(f.stages[1].count)} findings across ${N(f.stages[0].count)} components. `
+    +`${N(f.patch_level_quick_wins)} need only a backwards-compatible upgrade.`;
+  tiles('#tiles',[
+    ['Open findings',N(im.operations.open),'','','open',
+      ()=>gotoFindings('open',''),'See all \u2192'],
+    ['Business-critical',N(crit),'red','','critical',
+      ()=>gotoFindings('open','CRITICAL'),'Fix these first \u2192'],
+    ['Quick wins',N(f.patch_level_quick_wins),'green','patch-level upgrades','quick',
+      ()=>gotoFindings('open',''),'See findings \u2192'],
+    ['In regulatory scope',N(f.in_regulatory_scope),'','','regulated',
+      ()=>gotoFindings('open',''),'See findings \u2192'],
+    ['Fixed',N(im.operations.resolved),'green','','fixed',
+      ()=>gotoFindings('resolved',''),'See what was fixed \u2192'],
+    ['Time to fix',im.operations.mttr_hours==null?'\u2014':im.operations.mttr_hours+' h','',
+      im.operations.mttr_sample_size?`over ${im.operations.mttr_sample_size} fixed`:'none yet',
+      'mttr',()=>show('impact'),'Risk reduction \u2192'],
+  ]);
+  const st=S.status||{};
+  const warn=[];
+  if((st.never_scanned||[]).length)
+    warn.push((st.never_scanned.length)+' repositories have never been scanned: '
+      +st.never_scanned.map(shortName).join(', '));
+  if((st.unmapped_repositories||[]).length)
+    warn.push((st.unmapped_repositories.length)+' repositories have no business '
+      +'process mapped, so their criticality cannot be derived: '
+      +st.unmapped_repositories.map(shortName).join(', '));
+  const holder=$('#tiles');
+  const prev=document.getElementById('gaps');if(prev)prev.remove();
+  if(warn.length){
+    const w=el('div','warnbox');w.id='gaps';
+    w.innerHTML='<b>Gaps in coverage</b>'+warn.join('<br>');
+    holder.parentNode.insertBefore(w,holder.nextSibling);
+  }
+  bars('#funnel',f.stages.map(s=>[s.stage,s.count]),f.stages.length-1);
+  const t=im.operations.open_by_tier;
+  bars('#tiers',[['Critical',t.CRITICAL||0],['High',t.HIGH||0],
+    ['Medium',t.MEDIUM||0],['Low',t.LOW||0]],0);
+
+  const open=S.ex.filter(e=>e.state==='open')
+    .sort((a,b)=>(b.business_score||0)-(a.business_score||0));
+  const withMove=open.map((e,i)=>({e,rank:i+1,m:movedBy(e,i+1)}))
+    .filter(x=>x.m!=null).sort((a,b)=>Math.abs(b.m)-Math.abs(a.m)).slice(0,8);
+  const body=$('#movers');body.innerHTML='';
+  withMove.forEach(x=>{
+    const tr=el('tr','r');tr.tabIndex=0;
+    tr.onclick=()=>openDetail(x.e.id);
+    tr.onkeydown=ev=>{if(ev.key==='Enter')openDetail(x.e.id);};
+    tr.append(el('td','rk','#'+x.rank));
+    tr.append(el('td','nm',shortName(x.e.repository)));
+    tr.append(el('td','',(x.e.explanation||{}).driving_process||'Not mapped'));
+    tr.append(el('td','mo',x.e.component||''));
+    tr.append(el('td','n',(x.e.business_score||0).toFixed(2)));
+    tr.append(el('td','n',(x.e.baseline_score||0).toFixed(2)));
+    tr.append(movedCell(x.m));body.append(tr);
+  });
+}
+
+/* ------------------------------------------------------------- FINDINGS */
+function renderFindings(){
+  const tier=$('#f-tier').value,q=$('#f-text').value.trim().toLowerCase();
+  const ordered=[...S.ex].sort((a,b)=>(b.business_score||0)-(a.business_score||0));
+  const rows=ordered.map((e,i)=>({e,rank:i+1})).filter(({e})=>
+    (!tier||e.tier===tier)&&(!q||
+      ((e.repository||'')+' '+(e.component||'')+' '+(e.cve_id||'')).toLowerCase().includes(q)));
+  $('#f-count').textContent=rows.length+' shown';
+  const b=$('#f-body');b.innerHTML='';
+  if(!rows.length){const tr=el('tr'),td=el('td');td.colSpan=8;td.className='blank';
+    td.innerHTML='<b>Nothing matches.</b>Widen the filters or scan the repositories.';
+    tr.append(td);b.append(tr);return;}
+  rows.slice(0,250).forEach(({e,rank})=>{
+    const tr=el('tr','r');tr.tabIndex=0;
+    tr.onclick=()=>openDetail(e.id);
+    tr.onkeydown=ev=>{if(ev.key==='Enter')openDetail(e.id);};
+    tr.append(el('td','rk','#'+rank));
+    tr.append(el('td','nm',shortName(e.repository)));
+    tr.append(el('td','',(e.explanation||{}).driving_process||'Not mapped'));
+    tr.append(el('td','mo',(e.component||'')+' '+(e.version||'')));
+    const adv=el('td','mo');
+    adv.append(document.createTextNode(e.cve_id||e.advisory_id||''));
+    if(e.state==='open'&&!e.dependabot_alert_url){
+      const f=el('div','');f.style.cssText='font-size:11.5px;color:var(--ink3)';
+      f.textContent='no alert linked';adv.append(f);
+    }
+    tr.append(adv);
+    tr.append(el('td','n',e.business_score==null?'\u2014':e.business_score.toFixed(2)));
+    tr.append(movedCell(e.state==='open'?movedBy(e,rank):null));
+    const p=el('td');p.innerHTML=e.state==='resolved'
+      ?'<span class="chip c-fixed">fixed</span>'
+      :`<span class="chip c-${e.tier}">${(e.tier||'').toLowerCase()}</span>`;
+    tr.append(p);b.append(tr);
+  });
+}
+
+/* --------------------------------------------------------------- DETAIL */
+async function openDetail(id){
+  show('detail');
+  const box=$('#detail');box.innerHTML='<p class="blank">Loading the record\u2026</p>';
+  let d;try{d=await api('/api/exposures/'+id);}
+  catch(e){box.innerHTML='<p class="blank"><b>Could not load that finding.</b>'+e.message+'</p>';return;}
+  const row=S.ex.find(x=>x.id===id)||{};
+  const ex=d.explanation||{},c=ex.contributions||{};
+  box.innerHTML='';
+
+  const back=el('button','back','\u2190 Back to findings');
+  back.onclick=()=>show('find');box.append(back);
+
+  const top=el('div','dtop');
+  const left=el('div');
+  left.append(el('h2','',(ex.driving_process||shortName(d.repository))+' is exposed'));
+  left.append(el('p','meta',
+    `${d.component||''} ${row.version||''}  \u00b7  ${d.cve_id||d.repository}`));
+  top.append(left);
+  const sc=el('div','sc');
+  sc.append(el('div','v',(d.business_score||0).toFixed(2)));
+  sc.append(el('div','was','was '+(d.baseline_score||0).toFixed(2)+' on technical score alone'));
+  top.append(sc);box.append(top);
+
+  const grid=el('div','two');
+
+  // why it ranks here
+  const why=el('div','p');
+  why.append(el('h3','','Why it ranks here'));
+  const wb=el('div');wb.style.padding='16px 18px';
+  const lead=el('p','hint','How the three factors combined to produce this score.');
+  lead.style.margin='0 0 10px';lead.append(tip('score'));wb.append(lead);
+  const total=(c.cvss||0)+(c.epss||0)+(c.criticality||0)||1;
+  const stack=el('div','stack');
+  [['#101A34',c.cvss],['#C8382A',c.epss],['#1D7A4D',c.criticality]].forEach(([col,v])=>{
+    const i=el('i');i.style.background=col;i.style.width=((v||0)/total*100)+'%';stack.append(i);});
+  wb.append(stack);
+  const keys=el('div','keys');
+  keys.innerHTML=`<span><b style="background:#101A34"></b>Severity ${(c.cvss||0).toFixed(2)}</span>
+    <span><b style="background:#C8382A"></b>Exploitation ${(c.epss||0).toFixed(2)}</span>
+    <span><b style="background:#1D7A4D"></b>Business impact ${(c.criticality||0).toFixed(2)}</span>`;
+  wb.append(keys);
+  if(ex.compliance_factor>1)
+    wb.append(el('p','hint','Uplifted \u00d7'+ex.compliance_factor+' for '
+      +(ex.regimes||[]).join(', ')+' scope.'));
+  why.append(wb);
+  const dl1=document.createElement('dl');dl1.className='kv';
+  [['Business process',ex.driving_process||'not mapped'],
+   ['Regulatory scope',(ex.regimes||[]).join(', ')||'none'],
+   ['Priority',d.tier||'\u2014'],
+   ['Status',d.state==='resolved'?'Fixed':'Open']].forEach(([k,v])=>{
+    const r=el('div');r.append(el('dt','',k));r.append(el('dd','',v));dl1.append(r);});
+  why.append(dl1);grid.append(why);
+
+  // the dependency
+  const dep=el('div','p');dep.append(el('h3','','Affected dependency'));
+  const dl2=document.createElement('dl');dl2.className='kv';
+  [['Package',d.component||'\u2014'],['Installed version',row.version||'unresolved'],
+   ['Ecosystem',row.ecosystem||'\u2014'],
+   ['Relationship',(row.direct?'Direct dependency':'Transitive dependency')],
+   ['Matched by',(row.match_type||'').replace(/_/g,' ').toLowerCase()||'\u2014'],
+   ['Fixed in',row.first_patched_version||'no fix published'],
+   ['Upgrade effort',row.fix_effort_label||'unknown'],
+   ['Alert matched by', d.alert_match_method
+     ?(d.alert_match_method==='package'
+        ?'package and version (lower confidence)'
+        :'advisory identifier'):'no alert linked'],
+   ['Advisory',d.cve_id||d.repository||'\u2014']].forEach(([k,v])=>{
+    const r=el('div');r.append(el('dt','',k));r.append(el('dd','',v));dl2.append(r);});
+  const note=el('p','hint');note.style.padding='0 18px 16px';
+  note.textContent='Upgrade effort is the distance between the installed and '
+    +'patched versions. It never lowers a finding\u2019s risk score.';
+  note.append(tip('effort'));dep.append(note);
+  grid.append(dep);box.append(grid);
+
+  // timeline
+  const tlp=el('div','p');tlp.append(el('h3','','History'));
+  const tl=el('div','tl');
+  (d.timeline||[]).forEach(t=>{
+    const e2=el('div','e');e2.append(el('div','dot'));
+    const b2=el('div');
+    b2.append(el('h5','',({detected:'Detected',handoff_opened:'Handoff opened',
+      resolved:'Fixed',reopened:'Reopened'})[t.event]||t.event));
+    b2.append(el('p','',(t.detail||'')+(t.at?'  \u00b7  '+t.at.slice(0,16).replace('T',' '):'')));
+    e2.append(b2);tl.append(e2);
+  });
+  if(d.state!=='resolved'){
+    const e2=el('div','e');e2.append(el('div','dot wait'));
+    const b2=el('div');b2.append(el('h5','','Awaiting fix'));
+    b2.append(el('p','','Resolution is detected automatically when the alert closes on GitHub.'));
+    e2.append(b2);tl.append(e2);
+  }
+  tlp.append(tl);
+  const acts=el('div','acts');
+  if(d.handoff_precise&&d.handoff_url){
+    const a=document.createElement('a');a.className='btn';a.href=d.handoff_url;
+    a.target='_blank';a.rel='noopener';
+    a.textContent=d.dependabot_alert_number
+      ? ('Open Dependabot alert #'+d.dependabot_alert_number)
+      : 'Open Dependabot alert on GitHub';
+    acts.append(a);
+  } else if(d.handoff_search_url){
+    const a=document.createElement('a');a.className='btn';a.href=d.handoff_search_url;
+    a.target='_blank';a.rel='noopener';
+    a.style.cssText='background:var(--card);color:var(--ink);border-color:var(--line2)';
+    a.textContent='Browse alerts for '+(d.component||'this package');
+    acts.append(a);
+    const why = (row.match_type==='NO_VERSION')
+      ? 'The manifest declares a version constraint rather than a resolved '
+        +'version, so this finding cannot be matched to a specific alert.'
+      : (!d.cve_id
+        ? 'This advisory carries no CVE identifier, so there is nothing for '
+          +'Dependabot\u2019s identifier to match against.'
+        : 'GitHub may not have raised an alert for it \u2014 Dependabot and the '
+          +'vulnerability database do not cover identically.');
+    const w=el('p','hint');
+    w.innerHTML='<b style="color:var(--amber)">No Dependabot alert is linked to '
+      +'this finding.</b> '+why+' The list opens filtered by package so the right '
+      +'rows are visible. If you have not run <b>Link Dependabot</b> since the '
+      +'last scan, do that first.';
+    w.style.cssText='margin:0;max-width:62ch';
+    acts.append(w);
+  }
+  if(d.repository){
+    const g=document.createElement('a');g.className='gh';
+    g.href='https://github.com/'+d.repository;g.target='_blank';g.rel='noopener';
+    g.textContent='View repository';acts.append(g);
+  }
+  acts.append(el('p','hint','Exposure Desk never writes to your repositories \u2014 the merge stays with the repository owner.'));
+  tlp.append(acts);box.append(tlp);
+}
+
+/* ---------------------------------------------------------------- REPOS */
+$('#b-addrepo').onclick=async e=>{
+  const full=$('#add-repo').value.trim();
+  if(!full.includes('/')){toast('Use the owner/name form, for example octocat/hello-world.');return;}
+  const btn=e.target;btn.disabled=true;const was=btn.textContent;btn.textContent='Adding\u2026';
+  runShow('Adding '+full+' \u2014 fetching its SBOM and correlating advisories.');
+  try{
+    const r=await api('/api/repositories/add',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({full_name:full})});
+    runShow(r.note||(`Added ${full}: ${N(r.components)} components, `
+      +`${N(r.exposures)} findings.`),'ok');
+    setTimeout(runHide,8000);
+    $('#add-repo').value='';
+    await loadAll();
+  }catch(err){runShow('Could not add that repository \u2014 '+err.message,'bad');}
+  finally{btn.disabled=false;btn.textContent=was;}
+};
+
+function renderRepos(list){
+  S.repos=list;
+  const b=$('#r-body');b.innerHTML='';
+  const sel=$('#p-repo');sel.innerHTML='<option value="">Choose a repository\u2026</option>';
+  list.forEach(r=>{
+    const tr=el('tr');
+    const nameTd=el('td','nm');
+    const a=document.createElement('a');a.className='gh';
+    a.href='https://github.com/'+r.full_name;a.target='_blank';a.rel='noopener';
+    a.textContent=r.name;nameTd.append(a);tr.append(nameTd);
+    const bp=el('td');
+    if((r.business_processes||[]).length)bp.textContent=r.business_processes.join(', ');
+    else{
+      const chip=el('span','chip c-HIGH','unknown risk \u2014 not mapped');
+      bp.append(chip);bp.append(tip('unmapped'));
+      const fix=el('button','b','Map it');
+      fix.style.cssText='background:var(--card);color:var(--blue);border:0;padding:2px 0 0;'
+        +'display:block;font-size:12.5px;cursor:pointer';
+      fix.onclick=()=>{fillForm(null);show('ctx');
+        setTimeout(()=>{$('#p-repo').value=r.id;$('#p-name').focus();},60);};
+      bp.append(fix);
+    }
+    tr.append(bp);
+    tr.append(el('td','',(r.regulatory_scope||[]).join(', ')||'\u2014'));
+    tr.append(el('td','n',N(r.open_findings)));
+    tr.append(el('td','mo',r.last_ingested_at?r.last_ingested_at.slice(0,16).replace('T',' '):'never'));
+    const act=el('td');
+    const s=document.createElement('a');s.className='gh';
+    s.href='https://github.com/'+r.full_name+'/security/dependabot';
+    s.target='_blank';s.rel='noopener';s.textContent='Security alerts';
+    act.append(s);tr.append(act);b.append(tr);
+    const o=document.createElement('option');o.value=r.id;o.textContent=r.full_name;sel.append(o);
+  });
+}
+
+/* -------------------------------------------------------------- CONTEXT */
+let EDITING=null;
+function fillForm(p){
+  EDITING=p?p.name:null;
+  $('#ctx-head').textContent=p?('Editing \u201c'+p.name+'\u201d'):'Add a business process';
+  $('#b-cancel').style.display=p?'':'none';
+  $('#b-add').textContent=p?'Update and rescore':'Save and rescore';
+  $('#p-name').value=p?p.name:'';
+  $('#p-owner').value=p&&p.owner?p.owner:'';
+  $('#p-rev').value=p?p.revenue_dependency:'none';
+  $('#p-cust').value=p&&p.customer_facing?'true':'false';
+  $('#p-avail').value=p?p.availability_requirement:'low';
+  $('#p-data').value=p?p.data_sensitivity:'public';
+  $('#p-reg').value=p?(p.regulatory_scope||[]).join(', '):'';
+  $('#p-doc').value=p&&p.source_document?p.source_document:'';
+  $('#p-ref').value=p&&p.source_reference?p.source_reference:'';
+  if(p&&(p.repositories||[]).length){
+    const first=p.repositories[0];
+    const match=(S.repos||[]).find(r=>r.full_name===first);
+    $('#p-repo').value=match?match.id:'';
+  } else $('#p-repo').value='';
+  window.scrollTo(0,0);
+}
+$('#b-cancel').onclick=()=>fillForm(null);
+
+function renderProcs(list){
+  S.procs=list;
+  const b=$('#bp-body');b.innerHTML='';
+  if(!list.length){const tr=el('tr'),td=el('td');td.colSpan=8;td.className='blank';
+    td.innerHTML='<b>No business context yet.</b>Add a process above so criticality is derived rather than guessed.';
+    tr.append(td);b.append(tr);return;}
+  list.forEach(p=>{const tr=el('tr','r');
+    tr.tabIndex=0;
+    tr.onclick=()=>fillForm(p);
+    tr.onkeydown=e=>{if(e.key==='Enter')fillForm(p);};
+    tr.title='Click to edit this process';
+    tr.append(el('td','nm',p.name));
+    tr.append(el('td','',(p.repositories||[]).map(shortName).join(', ')||'\u2014'));
+    tr.append(el('td','',p.revenue_dependency));
+    tr.append(el('td','',p.customer_facing?'Yes':'No'));
+    tr.append(el('td','',p.availability_requirement));
+    tr.append(el('td','',p.data_sensitivity));
+    tr.append(el('td','',(p.regulatory_scope||[]).join(', ')||'\u2014'));
+    tr.append(el('td','mo',p.source_document||'\u2014'));b.append(tr);});
+}
+$('#b-add').onclick=async()=>{
+  const name=$('#p-name').value.trim();
+  if(!name){toast('Give the process a name first.');return;}
+  try{
+    const made=await api('/api/business-processes',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name,owner:$('#p-owner').value.trim()||null,
+        revenue_dependency:$('#p-rev').value,customer_facing:$('#p-cust').value==='true',
+        availability_requirement:$('#p-avail').value,data_sensitivity:$('#p-data').value,
+        regulatory_scope:$('#p-reg').value.trim()||null,
+        source_document:$('#p-doc').value.trim()||null,
+        source_reference:$('#p-ref').value.trim()||null})});
+    const rid=$('#p-repo').value;
+    if(rid){const k=await api('/api/business-processes/link',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({process_id:made.id,repository_id:Number(rid),role:'implements'})});
+      toast((EDITING?'Updated ':'Saved ')+name+' and rescored '
+        +N(k.rescored_findings)+' findings.');}
+    else toast((EDITING?'Updated ':'Saved ')+name
+      +'. Map it to a repository to rescore its findings.');
+    fillForm(null);
+    ['p-name','p-owner','p-reg','p-doc','p-ref'].forEach(i=>$('#'+i).value='');
+    await loadAll();
+  }catch(e){toast('Could not save: '+e.message,7000);}
+};
+
+/* --------------------------------------------------------------- IMPACT */
+function renderImpact(im){
+  const o=im.operations,z=im.business;
+  tiles('#im-tiles',[
+    ['Open',N(o.open),'red','','open',()=>gotoFindings('open','')],
+    ['Fixed',N(o.resolved),'green','','fixed',()=>gotoFindings('resolved','')],
+    ['Fix rate',(o.fix_rate*100).toFixed(2)+'%','','','fixrate'],
+    ['Mean time to fix',o.mttr_hours==null?'not measurable':o.mttr_hours+' h','',
+      o.mttr_sample_size?`over ${o.mttr_sample_size} fixed`:'no fixes yet','mttr'],
+    ['Business risk open',N(z.business_risk_open),'red','','riskopen'],
+    ['Risk removed',N(z.business_risk_eliminated),'green','','riskgone'],
+    ['Processes exposed',N(z.processes_at_risk),'red',
+      'of '+N(z.processes_at_risk+z.processes_protected)+' defined','exposed'],
+    ['Regulated repos exposed',
+      N(z.repositories_in_regulatory_scope_with_open_findings),'red','','regrepos'],
+  ]);
+  const body=$('#at-risk');body.innerHTML='';
+  const names=z.at_risk_process_names||[];
+  if(!names.length){
+    const tr=el('tr'),td=el('td');td.colSpan=5;td.className='blank';
+    td.innerHTML='<b>Every mapped process is clear.</b>No open finding affects a business process.';
+    tr.append(td);body.append(tr);return;
+  }
+  const open=S.ex.filter(e=>e.state==='open');
+  names.forEach(name=>{
+    const mine=open.filter(e=>((e.explanation||{}).driving_process||'')===name);
+    const worst=mine.reduce((m,e)=>Math.max(m,e.business_score||0),0);
+    const repos=[...new Set(mine.map(e=>shortName(e.repository)))];
+    const tr=el('tr');
+    tr.append(el('td','nm',name));
+    tr.append(el('td','',repos.join(', ')||'\u2014'));
+    tr.append(el('td','n',N(mine.length)));
+    tr.append(el('td','n',worst?worst.toFixed(2):'\u2014'));
+    const a=el('td');
+    if(mine.length){
+      const b=el('button','b',"Show findings");
+      b.style.cssText='background:var(--card);color:var(--ink);border-color:var(--line);padding:5px 10px';
+      b.onclick=()=>{$('#f-state').value='open';$('#f-tier').value='';
+        $('#f-text').value=repos[0]||'';show('find');loadQueue();};
+      a.append(b);
+    }
+    tr.append(a);body.append(tr);
+  });
+}
+
+
+
+/* ------------------------------------------------------------ EVALUATION */
+let EVROWS=[];
+const RUBRIC=[
+  [3,/payment|checkout|authentication|fraud|patient|card/i],
+  [2,/order|billing|fulfil|payroll|subject request|partner/i],
+  [1,/logging|analytics|marketing|notification|reporting|internal/i],
+];
+function suggestGrade(row){
+  const p=(row.business_process||'').toLowerCase();
+  if(!row.business_process) return 0;
+  if((row.regulatory_scope||[]).length && /payment|checkout|patient|fraud/i.test(p)) return 3;
+  for(const [g,re] of RUBRIC) if(re.test(p)) return g;
+  return (row.regulatory_scope||[]).length?2:1;
+}
+function evProgress(){
+  const done=EVROWS.filter(r=>r.relevance!=null&&r.relevance!=='').length;
+  $('#ev-progress').textContent=done+' of '+EVROWS.length+' graded';
+  $('#n-eval').textContent=done?done:'';
+}
+async function evLoad(){
+  const d=await api('/api/evaluation/worksheet');
+  EVROWS=d.pool||[];
+  const b=$('#ev-body');b.innerHTML='';
+  if(!EVROWS.length){
+    const tr=el('tr'),td=el('td');td.colSpan=5;td.className='blank';
+    td.innerHTML='<b>Nothing to grade yet.</b>'+(d.note||'');
+    tr.append(td);b.append(tr);evProgress();return;
+  }
+  EVROWS.forEach((r,i)=>{
+    const tr=el('tr');
+    const bp=el('td','nm');
+    bp.textContent=r.business_process||'not mapped';
+    if((r.regulatory_scope||[]).length){
+      const c=el('span','chip c-HIGH',r.regulatory_scope.join(', '));
+      c.style.marginLeft='6px';bp.append(c);
+    }
+    tr.append(bp);
+    tr.append(el('td','',shortName(r.repository)));
+    tr.append(el('td','mo',(r.component||'')+' '+(r.version||'')));
+    tr.append(el('td','mo',r.advisory||''));
+    const td=el('td');
+    const sel=document.createElement('select');
+    sel.style.cssText='padding:5px 8px;border:1px solid var(--line);border-radius:5px';
+    [['','\u2014 not graded'],['3','3  fix first'],['2','2  fix soon'],
+     ['1','1  scheduled'],['0','0  ignore']].forEach(([v,l])=>{
+      const o=document.createElement('option');o.value=v;o.textContent=l;sel.append(o);});
+    sel.value=r.relevance==null?'':String(r.relevance);
+    sel.onchange=()=>{EVROWS[i].relevance=sel.value===''?null:Number(sel.value);
+      evProgress();};
+    td.append(sel);tr.append(td);b.append(tr);
+  });
+  evProgress();
+  toast(EVROWS.length+' findings loaded \u2014 '+d.in_both_rankings
+    +' appear in both rankings.');
+}
+$('#ev-load').onclick=()=>evLoad().catch(e=>toast('Could not load: '+e.message,7000));
+$('#ev-suggest').onclick=()=>{
+  if(!EVROWS.length){toast('Load the sample first.');return;}
+  EVROWS.forEach(r=>{if(r.relevance==null)r.relevance=suggestGrade(r);});
+  const b=$('#ev-body');
+  [...b.querySelectorAll('select')].forEach((sel,i)=>{
+    sel.value=String(EVROWS[i].relevance);});
+  evProgress();
+  toast('Pre-filled by business process. Review each row before saving \u2014 '
+    +'this is a starting point, not a judgement.',7000);
+};
+$('#ev-save').onclick=async e=>{
+  const graded=EVROWS.filter(r=>r.relevance!=null);
+  if(graded.length<4){toast('Grade at least four findings first.');return;}
+  const btn=e.target;btn.disabled=true;
+  try{
+    const r=await api('/api/evaluation/grades',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({graded_by:'analyst',
+        grades:graded.map(g=>({exposure_id:g.exposure_id,relevance:g.relevance}))})});
+    toast('Saved '+r.saved+' grades. Now run the comparison.');
+  }catch(err){toast('Could not save: '+err.message,7000);}
+  finally{btn.disabled=false;}
+};
+$('#ev-run').onclick=async e=>{
+  const out=$('#ev-out');
+  out.innerHTML='<div class="blank"><b>Measuring\u2026</b></div>';
+  let d;
+  try{ d=await api('/api/evaluation/run'); }
+  catch(err){out.innerHTML='<div class="blank"><b>Could not run.</b>'
+    +err.message+'</div>';return;}
+  out.innerHTML='';
+
+  const t=el('div','tiles');t.style.padding='18px';
+  const better=d.delta>0;
+  [['Business-aware NDCG',d.ndcg_business_aware.toFixed(4),better?'green':''],
+   ['Technical-only NDCG',d.ndcg_technical_only.toFixed(4),''],
+   ['Difference',(d.delta>0?'+':'')+d.delta.toFixed(4),better?'green':'red'],
+   ['Relative change',(d.relative_improvement_pct>0?'+':'')
+     +(d.relative_improvement_pct||0).toFixed(2)+'%',better?'green':'red'],
+   ['Findings graded',N(d.graded)],
+   ['Robust across weights',d.robust_at+' of '+d.sensitivity_points,
+     d.robust_at===d.sensitivity_points?'green':'']].forEach(([k,v,c])=>{
+    const cell=el('div','tile'+(c?' '+c:''));
+    cell.append(el('div','k',k));cell.append(el('div','v',v));t.append(cell);});
+  out.append(t);
+
+  const verdict=el('p','hint');verdict.style.cssText='padding:0 18px 16px;margin:0;max-width:74ch';
+  verdict.innerHTML = d.uniform_grading
+    ? '<b style="color:var(--amber)">Every finding was graded the same.</b> NDCG '
+      +'cannot separate two rankings when the ground truth is uniform. Vary the '
+      +'grades and run again.'
+    : (better
+      ? '<b>The business-aware ordering matched your judgement more closely.</b> '
+        +'It scored higher at '+d.robust_at+' of '+d.sensitivity_points
+        +' weightings'+(d.robust_at===d.sensitivity_points
+          ? ', so the result is not an artefact of weighting criticality at 0.20.'
+          : ', so state the range over which it holds rather than a single figure.')
+      : '<b>No improvement was measured.</b> Report this plainly \u2014 a '
+        +'negative result honestly reported is a result, and the sensitivity '
+        +'table below shows whether it holds across weightings.');
+  out.append(verdict);
+
+  const sens=el('div','p');sens.style.margin='0 18px 18px';
+  sens.append(el('h3','','Sensitivity to the criticality weight'));
+  const st=document.createElement('table');
+  st.innerHTML='<thead><tr><th class="n">criticality</th><th class="n">cvss</th>'
+    +'<th class="n">epss</th><th class="n">business-aware</th>'
+    +'<th class="n">technical-only</th><th class="n">delta</th><th></th></tr></thead>';
+  const sb=document.createElement('tbody');
+  d.sensitivity.forEach(row=>{
+    const tr=el('tr');
+    tr.append(el('td','n',row.criticality_weight.toFixed(2)));
+    tr.append(el('td','n',row.cvss_weight.toFixed(2)));
+    tr.append(el('td','n',row.epss_weight.toFixed(2)));
+    tr.append(el('td','n',row.ndcg_business_aware.toFixed(4)));
+    tr.append(el('td','n',row.ndcg_technical_only.toFixed(4)));
+    const dd=el('td','n',(row.delta>0?'+':'')+row.delta.toFixed(4));
+    dd.style.color=row.delta>0?'var(--green)':'var(--red)';tr.append(dd);
+    tr.append(el('td','hint',row.published_model?'published model':''));
+    sb.append(tr);});
+  st.append(sb);sens.append(st);out.append(sens);
+
+  const cols=el('div','p');cols.style.margin='0 18px 18px';
+  cols.append(el('h3','','Top ten under each ordering'));
+  const ct=document.createElement('table');
+  ct.innerHTML='<thead><tr><th class="n">#</th><th>Business-aware</th>'
+    +'<th class="n">grade</th><th>Technical-only</th><th class="n">grade</th></tr></thead>';
+  const cb=document.createElement('tbody');
+  for(let i=0;i<Math.max(d.top_business_aware.length,d.top_technical_only.length);i++){
+    const a=d.top_business_aware[i],b2=d.top_technical_only[i];
+    const tr=el('tr');
+    tr.append(el('td','n',String(i+1)));
+    tr.append(el('td','',a?shortName(a.repository)+' \u00b7 '+(a.component||''):''));
+    tr.append(el('td','n',a?String(a.grade):''));
+    tr.append(el('td','',b2?shortName(b2.repository)+' \u00b7 '+(b2.component||''):''));
+    tr.append(el('td','n',b2?String(b2.grade):''));
+    cb.append(tr);}
+  ct.append(cb);cols.append(ct);
+  const cn=el('p','hint');cn.style.padding='0 18px 16px';
+  cn.textContent='A good ordering puts the 3s at the top. Compare the two grade '
+    +'columns \u2014 that comparison is the result, in one view.';
+  cols.append(cn);out.append(cols);
+};
+
+/* --------------------------------------------------------------- LOOKUP */
+async function runLookup(){
+  const q=$('#lk-q').value.trim();
+  const out=$('#lk-out');
+  if(!q){out.innerHTML='<b>Enter an identifier first.</b>For example CVE-2021-44228.';return;}
+  out.innerHTML='<b>Checking\u2026</b>Searching correlated findings, then the live advisory.';
+  let d;
+  try{ d=await api('/api/lookup?cve='+encodeURIComponent(q)); }
+  catch(e){ out.innerHTML='<b>That lookup failed.</b>'+e.message; return; }
+
+  if(!d.findings.length){
+    out.innerHTML='<b>Nothing found for '+d.identifier+'.</b>'
+      +(d.note||'No monitored repository contains the affected component.');
+    return;
+  }
+  const isPkg = d.query_kind==='package';
+  out.innerHTML='';
+  const head=el('div');head.style.cssText='padding:16px 18px;border-bottom:1px solid var(--line)';
+  const r=d.affected_repository_count;
+  const rule = d.version_rule;
+  const headline = isPkg
+    ? (rule
+        ? r+' repositor'+(r===1?'y':'ies')+' match '+d.identifier
+        : (d.vulnerable_count
+            ? d.vulnerable_count+' vulnerable use'+(d.vulnerable_count===1?'':'s')
+              +' of '+d.identifier+' across '+r+' repositor'+(r===1?'y':'ies')
+            : d.identifier+' is used in '+r+' repositor'+(r===1?'y':'ies')
+              +' with no known vulnerability'))
+    : r+' repositor'+(r===1?'y is':'ies are')+' exposed to '+d.identifier;
+  head.innerHTML='<div style="font-size:19px;font-weight:650">'+headline+'</div>'
+    +'<div style="font-size:13px;color:var(--ink2);margin-top:5px">'
+    +(d.advisory_summary||'')+'</div>'
+    +'<div style="font-size:12.5px;color:var(--ink3);margin-top:7px">Source: '
+    +d.source+((d.affected_packages&&d.affected_packages.length)
+      ?'  \u00b7  '+(isPkg?'versions in use: ':'affected packages: ')
+        +d.affected_packages.join(', '):'')+'</div>';
+  out.append(head);
+
+  const t=document.createElement('table');
+  t.innerHTML='<thead><tr><th>Repository</th><th>Business process</th>'
+    +'<th>Component</th><th>Dependency</th>'
+    +(isPkg?'<th>Advisory</th>':'')
+    +'<th class="n">Score</th><th>Status</th><th></th></tr></thead>';
+  const tb=document.createElement('tbody');
+  d.findings.forEach(f=>{
+    const tr=el('tr');
+    const rc=el('td','nm');
+    if(f.repository_url){const a=document.createElement('a');a.className='gh';
+      a.href=f.repository_url;a.target='_blank';a.rel='noopener';
+      a.textContent=shortName(f.repository);rc.append(a);}
+    else rc.textContent=shortName(f.repository);
+    tr.append(rc);
+    const bp=el('td');
+    if(f.business_process){bp.textContent=f.business_process;
+      if((f.regulatory_scope||[]).length)
+        bp.innerHTML+=' <span class="chip c-HIGH">'+f.regulatory_scope.join(', ')+'</span>';}
+    else bp.innerHTML='<span class="chip c-HIGH">not mapped</span>';
+    tr.append(bp);
+    tr.append(el('td','mo',(f.component||'')+' '+(f.version||'')));
+    tr.append(el('td','',f.direct?'Direct':'Transitive'));
+    if(isPkg) tr.append(el('td','mo',f.cve_id||'\u2014'));
+    tr.append(el('td','n',f.indicative_score==null?'\u2014':f.indicative_score.toFixed(2)));
+    const pr=el('td');
+    if(f.indicative_tier==='NO KNOWN ISSUE')
+      pr.innerHTML='<span class="chip c-fixed">no known issue</span>';
+    else if(f.state==='resolved')
+      pr.innerHTML='<span class="chip c-fixed">fixed</span>';
+    else
+      pr.innerHTML='<span class="chip c-'+(f.indicative_tier||'MEDIUM')+'">'
+       +(f.indicative_tier||'').toLowerCase()+'</span>';
+    tr.append(pr);
+    const ac=el('td');
+    if(f.dependabot_alert_url){const a=document.createElement('a');a.className='gh';
+      a.href=f.dependabot_alert_url;a.target='_blank';a.rel='noopener';
+      a.textContent='Alert';ac.append(a);}
+    tr.append(ac);tb.append(tr);
+  });
+  t.append(tb);out.append(t);
+  if(d.note){const n=el('p','hint',d.note);
+    n.style.cssText='padding:14px 18px;margin:0';out.append(n);}
+}
+$('#lk-go').onclick=runLookup;
+$('#lk-q').addEventListener('keydown',e=>{if(e.key==='Enter')runLookup();});
+
+['f-state','f-tier','f-dd'].forEach(i=>$('#'+i).onchange=loadQueue);
+$('#f-text').oninput=renderFindings;
+
+async function loadQueue(){
+  S.ex=await api(`/api/exposures?state=${$('#f-state').value}&limit=500&dedupe=${$('#f-dd').checked}`);
+  ranks();renderFindings();
+}
+async function loadAll(){
+  try{
+    const h=await api('/api/health');
+    try{
+      const st=await api('/api/status');
+      $('#fresh').textContent=st.last_scan
+        ? 'Last scan '+new Date(st.last_scan).toLocaleString()
+        : 'Never scanned';
+      S.status=st;
+    }catch(_){}
+    $('#org').textContent=h.org||'not configured';
+    $('#n-bp').textContent=h.business_processes;$('#n-repo').textContent=h.repositories;
+    $('#n-find').textContent=h.exposures;
+    $('#live').classList.remove('off');$('#livetxt').textContent='Connected';
+    const [f,im,repos,procs]=await Promise.all([api('/api/triage-funnel'),
+      api('/api/impact'),api('/api/repositories'),api('/api/business-processes')]);
+    await loadQueue();
+    renderHome(f,im);renderRepos(repos);renderProcs(procs);renderImpact(im);
+  }catch(e){
+    $('#live').classList.add('off');$('#livetxt').textContent='Not connected';
+    toast('Cannot reach the analyzer at '+API+'. Start it with: uvicorn sbom_c2.api:app',9000);
+  }
+}
+loadAll();
+</script>
+</body>
+</html>

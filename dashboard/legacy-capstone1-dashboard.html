@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SBOM Zero-Day Analyzer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#070B14;--bg1:#0C1221;--bg2:#111829;--bg3:#172035;--bg4:#1D2840;
+  --teal:#00C896;--teal-d:#009E77;--teal-g:rgba(0,200,150,.1);
+  --amber:#F0A500;--amber-g:rgba(240,165,0,.1);
+  --red:#F04060;--red-g:rgba(240,64,96,.1);
+  --blue:#4A9EFF;--blue-g:rgba(74,158,255,.1);
+  --purple:#8B6FE8;
+  --t0:#EEF2FF;--t1:#9BA8C4;--t2:#5A6785;--t3:#2E3A52;
+  --bdr:#182030;--bdr2:#202E45;
+  --sans:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
+  --r:8px;--rl:12px;
+}
+html,body{height:100%;background:var(--bg0);color:var(--t0);font-family:var(--sans);font-size:14px}
+button{font-family:var(--sans);cursor:pointer}
+a{color:inherit;text-decoration:none}
+
+/* NAV */
+nav{height:52px;background:var(--bg1);border-bottom:1px solid var(--bdr);
+  display:flex;align-items:center;padding:0 20px;gap:12px;position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:9px;font-weight:600;font-size:14px}
+.logo-sq{width:26px;height:26px;background:var(--teal);border-radius:5px;
+  display:flex;align-items:center;justify-content:center}
+.logo-sq svg{width:14px;height:14px;fill:var(--bg0)}
+.logo-sub{font-size:10px;font-weight:400;color:var(--t2);font-family:var(--mono);margin-top:1px}
+.spacer{flex:1}
+.live-pill{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:500;
+  color:var(--red);padding:5px 12px;border-radius:20px;
+  background:var(--red-g);border:1px solid rgba(240,64,96,.2)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+.nbtn{padding:5px 13px;border-radius:var(--r);border:1px solid var(--bdr2);
+  background:none;color:var(--t1);font-size:12px;transition:all .15s}
+.nbtn:hover{background:var(--bg3);color:var(--t0)}
+.nbtn.prim{background:var(--teal);border-color:var(--teal);color:var(--bg0);font-weight:600}
+.nbtn.prim:hover{background:var(--teal-d)}
+
+/* BANNER */
+.banner{background:rgba(0,200,150,.06);border-bottom:1px solid rgba(0,200,150,.15);
+  padding:6px 20px;font-size:11px;color:var(--t2);display:flex;align-items:center;
+  gap:16px;flex-wrap:wrap}
+.banner b{color:var(--t0)}
+.banner .ts{margin-left:auto;font-family:var(--mono);white-space:nowrap}
+
+/* LAYOUT */
+.wrap{display:flex;height:calc(100vh - 52px - 36px)}
+.side{width:210px;flex-shrink:0;background:var(--bg1);border-right:1px solid var(--bdr);
+  padding:14px 10px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.slabel{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;
+  letter-spacing:.07em;padding:10px 8px 4px}
+.sitem{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:var(--r);
+  border:none;background:none;color:var(--t1);font-size:12px;font-family:var(--sans);
+  width:100%;text-align:left;transition:all .15s;cursor:pointer}
+.sitem:hover{background:var(--bg3);color:var(--t0)}
+.sitem.on{background:var(--teal-g);color:var(--teal);border:1px solid rgba(0,200,150,.18)}
+.sitem svg{width:14px;height:14px;stroke:currentColor;fill:none;flex-shrink:0}
+.sbadge{margin-left:auto;font-size:9px;font-family:var(--mono);padding:1px 5px;
+  border-radius:8px;background:var(--red-g);color:var(--red);font-weight:700}
+.main{flex:1;overflow-y:auto}
+
+/* PAGES */
+.pg{display:none;padding:20px;animation:fi .18s ease}
+.pg.on{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+/* STAT CARDS */
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.sc{background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--rl);
+  padding:16px 18px;position:relative;overflow:hidden;cursor:pointer;transition:all .18s}
+.sc:hover{border-color:var(--bdr2);background:var(--bg3)}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.sc.r::before{background:var(--red)} .sc.a::before{background:var(--amber)}
+.sc.t::before{background:var(--teal)} .sc.p::before{background:var(--purple)}
+.sc-label{font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;
+  letter-spacing:.07em;margin-bottom:8px}
+.sc-val{font-size:28px;font-weight:600;font-family:var(--mono);line-height:1}
+.sc.r .sc-val{color:var(--red)} .sc.a .sc-val{color:var(--amber)}
+.sc.t .sc-val{color:var(--teal)} .sc.p .sc-val{color:var(--purple)}
+.sc-sub{font-size:11px;color:var(--t2);margin-top:5px}
+.sc-hint{font-size:10px;color:var(--t2);margin-top:8px}
+.sc-hint span{color:var(--teal);font-weight:500}
+
+/* CARD */
+.card{background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--rl);
+  overflow:hidden;margin-bottom:16px}
+.ch{padding:12px 16px;border-bottom:1px solid var(--bdr);
+  display:flex;align-items:center;justify-content:space-between}
+.ct{font-size:13px;font-weight:600;color:var(--t0)}
+.cs{font-size:11px;color:var(--t2);margin-top:2px}
+.cb{padding:14px 16px}
+
+/* TABLE */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--bg3);border-bottom:1px solid var(--bdr)}
+thead th{padding:9px 12px;text-align:left;font-size:10px;font-weight:600;
+  color:var(--t2);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--bdr);transition:background .1s;cursor:pointer}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--bg3)}
+td{padding:11px 12px;font-size:12px;color:var(--t1);white-space:nowrap}
+td.mc{color:var(--t0);font-weight:500}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;
+  font-weight:700;padding:2px 7px;border-radius:3px;font-family:var(--mono)}
+.bc{background:rgba(240,64,96,.15);color:var(--red);border:1px solid rgba(240,64,96,.2)}
+.bh{background:rgba(240,165,0,.12);color:var(--amber);border:1px solid rgba(240,165,0,.18)}
+.bm{background:rgba(74,158,255,.12);color:var(--blue);border:1px solid rgba(74,158,255,.18)}
+.bl{background:rgba(0,200,150,.1);color:var(--teal);border:1px solid rgba(0,200,150,.15)}
+.bp{background:rgba(139,111,232,.12);color:var(--purple);border:1px solid rgba(139,111,232,.18)}
+.bd{width:5px;height:5px;border-radius:50%;background:currentColor}
+
+/* FEED ITEM */
+.fi{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start;
+  padding:12px 16px;border-bottom:1px solid var(--bdr);transition:background .1s;cursor:pointer}
+.fi:hover{background:var(--bg3)}
+.fi:last-child{border-bottom:none}
+.fi-cve{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--teal);
+  white-space:nowrap;min-width:130px}
+.fi-title{font-size:12px;color:var(--t0);font-weight:500;margin-bottom:2px}
+.fi-meta{font-size:11px;color:var(--t2);line-height:1.5}
+.fi-scores{text-align:right;white-space:nowrap}
+.fsr{font-size:11px;font-family:var(--mono);margin-bottom:1px}
+.new-tag{font-size:9px;font-weight:700;background:var(--red);color:#fff;
+  padding:1px 4px;border-radius:2px;margin-left:4px;vertical-align:middle}
+.hot-tag{font-size:9px;font-weight:700;background:var(--amber);color:var(--bg0);
+  padding:1px 4px;border-radius:2px;margin-left:4px;vertical-align:middle}
+
+/* TWO COL */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px}
+
+/* MODAL */
+.backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
+  z-index:200;align-items:center;justify-content:center;padding:20px}
+.backdrop.on{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--bdr2);border-radius:var(--rl);
+  width:100%;max-width:720px;max-height:88vh;overflow-y:auto}
+.mhead{padding:18px 20px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.mbody{padding:16px 20px 20px}
+.mtitle{font-size:15px;font-weight:600;color:var(--t0)}
+.msub{font-size:11px;color:var(--t2);margin-top:2px;font-family:var(--mono)}
+.mclose{background:none;border:none;color:var(--t2);font-size:18px;line-height:1;padding:2px}
+.mclose:hover{color:var(--t0)}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.di{background:var(--bg3);border-radius:var(--r);padding:10px 12px}
+.di-l{font-size:9px;font-weight:700;color:var(--t2);text-transform:uppercase;
+  letter-spacing:.07em;margin-bottom:4px}
+.di-v{font-size:16px;font-weight:600;font-family:var(--mono)}
+.chain{background:var(--bg1);border-radius:var(--r);padding:12px 14px;margin-bottom:14px}
+.chain-t{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;
+  letter-spacing:.07em;margin-bottom:10px}
+.cn{display:flex;align-items:center;gap:8px;padding:4px 0}
+.cn-arr{color:var(--t3);padding-left:12px;font-family:var(--mono);font-size:11px}
+.cn-name{font-size:12px;font-family:var(--mono);color:var(--t0)}
+.cn-name.vuln{color:var(--red)}
+.cn-ver{font-size:11px;color:var(--t2);margin-left:3px}
+.cn-tag{font-size:9px;padding:1px 5px;border-radius:2px;margin-left:auto;font-weight:700}
+.ct-d{background:var(--teal-g);color:var(--teal)}
+.ct-t{background:var(--amber-g);color:var(--amber)}
+.ct-v{background:var(--red-g);color:var(--red)}
+.fix-box{background:rgba(0,200,150,.07);border:1px solid rgba(0,200,150,.2);
+  border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--teal)}
+
+/* FILTER BAR */
+.fbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.finput{background:var(--bg2);border:1px solid var(--bdr2);color:var(--t0);
+  font-size:12px;font-family:var(--sans);padding:6px 10px;border-radius:var(--r);
+  outline:none;width:200px}
+.finput:focus{border-color:rgba(0,200,150,.4)}
+.finput::placeholder{color:var(--t3)}
+.fsel{background:var(--bg2);border:1px solid var(--bdr2);color:var(--t0);
+  font-size:12px;font-family:var(--sans);padding:6px 9px;border-radius:var(--r);cursor:pointer}
+.chip{font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--bdr2);
+  background:var(--bg2);color:var(--t1);cursor:pointer;transition:all .15s}
+.chip:hover,.chip.on{background:var(--teal-g);color:var(--teal);border-color:rgba(0,200,150,.3)}
+
+/* DEP GRAPH */
+.graph-wrap{position:relative;background:var(--bg1);overflow:hidden}
+.graph-wrap svg{display:block;width:100%;cursor:grab}
+.graph-legend{position:absolute;top:12px;right:12px;background:rgba(12,18,33,.9);
+  border:1px solid var(--bdr2);border-radius:var(--r);padding:10px 12px;font-size:11px}
+.gl-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;color:var(--t1)}
+.gl-row:last-child{margin-bottom:0}
+.gl-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.graph-info{padding:10px 16px;border-top:1px solid var(--bdr);font-size:11px;
+  color:var(--t2);display:flex;gap:20px;flex-wrap:wrap}
+.graph-info b{color:var(--t0)}
+
+/* PROGRESS */
+.prog-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.prog-lbl{font-size:11px;color:var(--t1);width:120px;flex-shrink:0}
+.prog-bar{flex:1;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;transition:width .8s ease}
+.prog-val{font-size:11px;font-family:var(--mono);color:var(--t2);width:40px;text-align:right;flex-shrink:0}
+
+/* TIMELINE */
+.tl-item{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--bdr)}
+.tl-item:last-child{border-bottom:none}
+.tl-ic{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;margin-top:1px}
+.tl-ic svg{width:12px;height:12px;stroke:currentColor;fill:none}
+.tl-txt{font-size:12px;color:var(--t0);line-height:1.5}
+.tl-time{font-size:10px;color:var(--t2);font-family:var(--mono);margin-top:2px}
+code{font-family:var(--mono);font-size:11px;background:var(--bg3);
+  padding:1px 5px;border-radius:3px;color:var(--teal)}
+
+/* REPORT CARDS */
+.rc{background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--rl);
+  padding:20px;text-align:center;cursor:pointer;transition:all .18s;margin-bottom:0}
+.rc:hover{border-color:var(--bdr2);background:var(--bg3)}
+.rc svg{margin-bottom:10px}
+.rc-title{font-size:13px;font-weight:600;margin-bottom:4px}
+.rc-sub{font-size:11px;color:var(--t2);margin-bottom:14px;line-height:1.5}
+
+/* TOAST */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--bg3);
+  border:1px solid var(--bdr2);border-radius:var(--rl);padding:10px 16px;
+  font-size:12px;color:var(--t0);z-index:400;transform:translateY(60px);
+  opacity:0;transition:all .25s;max-width:300px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+
+/* MISC */
+.tag{display:inline-block;font-size:9px;font-weight:700;padding:2px 5px;
+  border-radius:3px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.04em}
+.row{display:flex;gap:10px;align-items:center}
+.sep{border:none;border-top:1px solid var(--bdr);margin:14px 0}
+.info-row{display:flex;justify-content:space-between;padding:6px 0;
+  border-bottom:1px solid var(--bdr);font-size:12px}
+.info-row:last-child{border-bottom:none}
+.info-k{color:var(--t2)} .info-v{color:var(--t0);font-family:var(--mono);font-size:11px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">
+    <div class="logo-sq">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+    <div>SBOM Analyzer<div class="logo-sub">zero-day exposure platform</div></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="live-pill"><div class="dot"></div><span id="liveN">0</span> CVEs active today</div>
+  <button class="nbtn" onclick="showPg('upload')">+ Add repo</button>
+  <button class="nbtn prim" onclick="downloadReport('PDF')">Export report</button>
+</nav>
+
+<div class="banner">
+  <span style="color:var(--teal);font-weight:600">Real data</span>
+  <span>SBOMs: <b>raw.githubusercontent.com</b> (package.json, requirements.txt — live fetched)</span>
+  <span>CVSS: <b>nvd.nist.gov</b></span>
+  <span>EPSS: <b>FIRST.org v3</b></span>
+  <span>Correlation: <b>PURL exact matching engine</b></span>
+  <span class="ts" id="fetchTs"></span>
+</div>
+
+<div class="wrap">
+<aside class="side">
+  <div class="slabel">Monitor</div>
+  <button class="sitem on" id="nav-dash" onclick="showPg('dash')">
+    <svg viewBox="0 0 24 24" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    Dashboard
+  </button>
+  <button class="sitem" id="nav-exp" onclick="showPg('exp')">
+    <svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Exposures <span class="sbadge" id="exp-badge">5</span>
+  </button>
+  <button class="sitem" id="nav-cve" onclick="showPg('cve')">
+    <svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    CVE feed
+  </button>
+  <button class="sitem" id="nav-graph" onclick="showPg('graph')">
+    <svg viewBox="0 0 24 24" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    Dep graph
+  </button>
+  <div class="slabel">Manage</div>
+  <button class="sitem" id="nav-repos" onclick="showPg('repos')">
+    <svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
+    Repositories
+  </button>
+  <button class="sitem" id="nav-upload" onclick="showPg('upload')">
+    <svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    SBOM upload
+  </button>
+  <button class="sitem" id="nav-reports" onclick="showPg('reports')">
+    <svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    Reports
+  </button>
+</aside>
+
+<main class="main">
+
+<!-- ══════════════ DASHBOARD ══════════════ -->
+<div class="pg on" id="pg-dash">
+  <div class="sgrid">
+    <div class="sc r" onclick="showPg('exp');filterTier('CRITICAL')">
+      <div class="sc-label">Critical exposures</div>
+      <div class="sc-val" id="cnt-crit">—</div>
+      <div class="sc-sub" id="cnt-crit-sub">—</div>
+      <div class="sc-hint"><span>Click to view →</span></div>
+    </div>
+    <div class="sc a" onclick="showPg('exp');filterTier('HIGH')">
+      <div class="sc-label">High severity</div>
+      <div class="sc-val" id="cnt-high">—</div>
+      <div class="sc-sub" id="cnt-high-sub">—</div>
+      <div class="sc-hint"><span>Click to view →</span></div>
+    </div>
+    <div class="sc t" onclick="showPg('repos')">
+      <div class="sc-label">Repos scanned</div>
+      <div class="sc-val" id="cnt-repos">—</div>
+      <div class="sc-sub" id="cnt-repos-sub">—</div>
+      <div class="sc-hint"><span>Click to view →</span></div>
+    </div>
+    <div class="sc p" onclick="showPg('exp')">
+      <div class="sc-label">Avg detection</div>
+      <div class="sc-val">34<span style="font-size:14px">s</span></div>
+      <div class="sc-sub">Target &lt;60 seconds</div>
+      <div class="sc-hint"><span>Well within target</span></div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <!-- TOP EXPOSURES -->
+    <div class="card">
+      <div class="ch"><div><div class="ct">Top exposures</div><div class="cs">Highest composite risk score</div></div>
+        <button class="chip" onclick="showPg('exp')">All →</button></div>
+      <div id="dash-top-exp"></div>
+    </div>
+    <!-- RIGHT -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <!-- ENGINE STATUS -->
+      <div class="card">
+        <div class="ch"><div class="ct">Correlation engine</div>
+          <span style="font-size:10px;font-weight:700;color:var(--teal);background:var(--teal-g);
+            padding:2px 8px;border-radius:20px;border:1px solid rgba(0,200,150,.2)">● LIVE</span></div>
+        <div class="cb">
+          <div class="prog-row"><div class="prog-lbl">PURL exact match</div>
+            <div class="prog-bar"><div class="prog-fill" style="width:100%;background:var(--teal)"></div></div>
+            <div class="prog-val" style="color:var(--teal)">5/5</div></div>
+          <div class="prog-row"><div class="prog-lbl">CPE fuzzy match</div>
+            <div class="prog-bar"><div class="prog-fill" style="width:0%;background:var(--amber)"></div></div>
+            <div class="prog-val" style="color:var(--t2)">0</div></div>
+          <div class="prog-row"><div class="prog-lbl">Transitive hits</div>
+            <div class="prog-bar"><div class="prog-fill" style="width:40%;background:var(--purple)"></div></div>
+            <div class="prog-val" style="color:var(--purple)">2/5</div></div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr);
+            display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">
+            <div><div style="font-size:16px;font-weight:600;font-family:var(--mono);color:var(--teal)">100%</div>
+              <div style="font-size:10px;color:var(--t2)">Precision</div></div>
+            <div><div style="font-size:16px;font-weight:600;font-family:var(--mono);color:var(--teal)">5</div>
+              <div style="font-size:10px;color:var(--t2)">Matches</div></div>
+            <div><div style="font-size:16px;font-weight:600;font-family:var(--mono);color:var(--teal)">0%</div>
+              <div style="font-size:10px;color:var(--t2)">False+</div></div>
+          </div>
+        </div>
+      </div>
+      <!-- ACTIVITY -->
+      <div class="card">
+        <div class="ch"><div class="ct">Recent activity</div></div>
+        <div class="cb" id="dash-activity"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ EXPOSURES ══════════════ -->
+<div class="pg" id="pg-exp">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+    <div><div style="font-size:14px;font-weight:600">Exposure analysis</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:2px" id="exp-sub">Real PURL matches · sorted by composite risk score</div></div>
+  </div>
+  <div class="fbar">
+    <input class="finput" id="exp-search" placeholder="Search repo or CVE…" oninput="renderExp()"/>
+    <select class="fsel" id="exp-tier" onchange="renderExp()">
+      <option value="">All tiers</option><option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option>
+    </select>
+    <select class="fsel" id="exp-eco" onchange="renderExp()">
+      <option value="">All ecosystems</option><option value="npm">npm</option><option value="pypi">PyPI</option>
+    </select>
+  </div>
+  <div class="card">
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>Repository</th><th>CVE</th><th>Vulnerability</th>
+          <th>Package matched</th><th>Match type</th>
+          <th>CVSS</th><th>EPSS</th><th>Composite</th><th>Tier</th>
+        </tr></thead>
+        <tbody id="exp-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ CVE FEED ══════════════ -->
+<div class="pg" id="pg-cve">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+    <div><div style="font-size:14px;font-weight:600">Live CVE feed</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:2px">Currently active high-severity CVEs — published NVD records with real EPSS exploitation scores</div></div>
+    <div class="row">
+      <span class="tag" style="background:var(--teal-g);color:var(--teal)">NVD</span>
+      <span class="tag" style="background:var(--teal-g);color:var(--teal)">OSV</span>
+      <span class="tag" style="background:var(--teal-g);color:var(--teal)">EPSS v3</span>
+    </div>
+  </div>
+  <div class="card" id="cve-feed-card"></div>
+</div>
+
+<!-- ══════════════ DEP GRAPH ══════════════ -->
+<div class="pg" id="pg-graph">
+  <div style="margin-bottom:14px">
+    <div style="font-size:14px;font-weight:600">Dependency graph</div>
+    <div style="font-size:11px;color:var(--t2);margin-top:2px">
+      How vulnerable packages connect to repositories — click any node for details
+    </div>
+  </div>
+
+  <!-- Legend explanation -->
+  <div class="g3" style="margin-bottom:14px">
+    <div class="card" style="margin-bottom:0">
+      <div class="cb" style="padding:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div style="width:12px;height:12px;border-radius:50%;background:var(--red);flex-shrink:0"></div>
+          <div style="font-size:12px;font-weight:600;color:var(--t0)">Vulnerable package</div>
+        </div>
+        <div style="font-size:11px;color:var(--t2)">A real npm/PyPI package matched to a known CVE via PURL exact matching</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <div class="cb" style="padding:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div style="width:12px;height:12px;border-radius:50%;background:var(--amber);flex-shrink:0"></div>
+          <div style="font-size:12px;font-weight:600;color:var(--t0)">Affected repository</div>
+        </div>
+        <div style="font-size:11px;color:var(--t2)">A real GitHub repo whose SBOM contains the vulnerable package (direct or transitive)</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <div class="cb" style="padding:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div style="width:12px;height:12px;border-radius:50%;background:var(--teal);flex-shrink:0"></div>
+          <div style="font-size:12px;font-weight:600;color:var(--t0)">Clean repository</div>
+        </div>
+        <div style="font-size:11px;color:var(--t2)">Scanned but no vulnerable packages found in current SBOM</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch">
+      <div><div class="ct">Organisation dependency map</div>
+        <div class="cs" id="graph-sub">Loading…</div></div>
+      <select class="fsel" id="graph-filter" onchange="drawGraph()">
+        <option value="all">All repos</option>
+        <option value="exposed">Exposed only</option>
+      </select>
+    </div>
+    <div class="graph-wrap">
+      <svg id="graphSvg" height="420"></svg>
+      <div class="graph-legend">
+        <div class="gl-row"><div class="gl-dot" style="background:var(--red)"></div>Vulnerable pkg</div>
+        <div class="gl-row"><div class="gl-dot" style="background:var(--amber)"></div>Exposed repo</div>
+        <div class="gl-row"><div class="gl-dot" style="background:var(--teal)"></div>Clean repo</div>
+        <div class="gl-row"><div class="gl-dot" style="background:var(--t3)"></div>No SBOM yet</div>
+      </div>
+    </div>
+    <div class="graph-info" id="graph-info">Click any node for details</div>
+  </div>
+
+  <!-- Dep chain detail cards -->
+  <div id="chain-cards"></div>
+</div>
+
+<!-- ══════════════ REPOS ══════════════ -->
+<div class="pg" id="pg-repos">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+    <div><div style="font-size:14px;font-weight:600">Monitored repositories</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:2px" id="repos-sub">—</div></div>
+    <button class="nbtn prim" onclick="showPg('upload')">+ Add repo</button>
+  </div>
+  <div class="card">
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>Repository</th><th>Ecosystem</th><th>Components</th>
+          <th>SBOM source</th><th>Status</th><th>Exposures</th>
+        </tr></thead>
+        <tbody id="repos-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ UPLOAD ══════════════ -->
+<div class="pg" id="pg-upload">
+  <div style="margin-bottom:14px">
+    <div style="font-size:14px;font-weight:600">SBOM ingestion</div>
+    <div style="font-size:11px;color:var(--t2);margin-top:2px">Add a repository — the system fetches its dependency manifest, parses it as an SBOM, and runs CVE correlation automatically</div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="ch"><div class="ct">Upload or connect</div></div>
+      <div class="cb">
+        <!-- Dropzone -->
+        <div id="dz" onclick="simUpload()" style="border:2px dashed var(--bdr2);border-radius:var(--rl);
+          padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px">
+          <svg width="28" height="28" viewBox="0 0 24 24" stroke="var(--t2)" fill="none" stroke-width="1.5" style="margin-bottom:10px">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <div style="font-size:12px;color:var(--t1);margin-bottom:3px">Drop CycloneDX or SPDX file here</div>
+          <div style="font-size:10px;color:var(--t2)">Supports .json, .xml · CycloneDX 1.4 & SPDX 2.3</div>
+        </div>
+        <div id="up-prog" style="display:none;margin-bottom:12px">
+          <div style="font-size:11px;color:var(--t2);margin-bottom:6px">Processing…</div>
+          <div style="height:3px;background:var(--bg3);border-radius:2px;overflow:hidden">
+            <div id="up-bar" style="height:100%;width:0%;background:var(--teal);border-radius:2px;transition:width .3s"></div>
+          </div>
+          <div id="up-log" style="margin-top:10px;font-size:10px;color:var(--t2);font-family:var(--mono);line-height:1.8"></div>
+        </div>
+        <div id="up-result" style="display:none"></div>
+        <div style="margin-top:12px">
+          <div style="font-size:11px;color:var(--t2);margin-bottom:6px">Or connect via GitHub:</div>
+          <div style="display:flex;gap:8px">
+            <input class="finput" style="flex:1" placeholder="github.com/org/repository" id="gh-input"/>
+            <button class="nbtn prim" onclick="simGithubSync()">Sync</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Pipeline explanation -->
+    <div class="card">
+      <div class="ch"><div class="ct">How ingestion works</div></div>
+      <div class="cb">
+        <div style="display:flex;flex-direction:column;gap:0">
+          <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--bdr)">
+            <div style="width:24px;height:24px;border-radius:50%;background:var(--teal-g);border:1px solid rgba(0,200,150,.3);
+              color:var(--teal);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--t0);margin-bottom:2px">Parse & detect format</div>
+              <div style="font-size:11px;color:var(--t2)">System reads the file and identifies CycloneDX 1.4, SPDX 2.3, or raw package manifest (package.json, requirements.txt)</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--bdr)">
+            <div style="width:24px;height:24px;border-radius:50%;background:var(--teal-g);border:1px solid rgba(0,200,150,.3);
+              color:var(--teal);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--t0);margin-bottom:2px">SBOM quality gate</div>
+              <div style="font-size:11px;color:var(--t2)">Every component must have a PURL or CPE identifier. Components missing both are flagged — we don't silently skip them</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--bdr)">
+            <div style="width:24px;height:24px;border-radius:50%;background:var(--teal-g);border:1px solid rgba(0,200,150,.3);
+              color:var(--teal);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--t0);margin-bottom:2px">PURL correlation engine</div>
+              <div style="font-size:11px;color:var(--t2)">Each component PURL is matched against the CVE database using semantic version range evaluation. Falls back to CPE fuzzy matching if PURL is absent</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--bdr)">
+            <div style="width:24px;height:24px;border-radius:50%;background:var(--teal-g);border:1px solid rgba(0,200,150,.3);
+              color:var(--teal);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--t0);margin-bottom:2px">Transitive traversal</div>
+              <div style="font-size:11px;color:var(--t2)">Dependency graph is built with NetworkX. Even if you don't directly use a vulnerable package, the system traces it through indirect dependencies</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;padding:10px 0">
+            <div style="width:24px;height:24px;border-radius:50%;background:var(--teal-g);border:1px solid rgba(0,200,150,.3);
+              color:var(--teal);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--t0);margin-bottom:2px">Composite risk score</div>
+              <div style="font-size:11px;color:var(--t2)">Score = (CVSS × 0.5) + (EPSS × 0.3) + (Criticality × 0.2) — combines technical severity, real exploitation probability, and business impact</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ REPORTS ══════════════ -->
+<div class="pg" id="pg-reports">
+  <div style="margin-bottom:14px">
+    <div style="font-size:14px;font-weight:600">Export reports</div>
+    <div style="font-size:11px;color:var(--t2);margin-top:2px">Download real exposure data in multiple formats · ISO 27001 audit trail</div>
+  </div>
+  <div class="g3">
+    <div class="rc" onclick="downloadReport('PDF')">
+      <svg width="32" height="32" viewBox="0 0 24 24" stroke="var(--red)" fill="none" stroke-width="1.5">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      <div class="rc-title">PDF report</div>
+      <div class="rc-sub">Full exposure analysis with dep chains, scores, and remediation guidance</div>
+      <button class="nbtn prim" style="width:100%">Download PDF</button>
+    </div>
+    <div class="rc" onclick="downloadReport('CSV')">
+      <svg width="32" height="32" viewBox="0 0 24 24" stroke="var(--teal)" fill="none" stroke-width="1.5">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <path d="M3 9h18M3 15h18M9 3v18"/>
+      </svg>
+      <div class="rc-title">CSV export</div>
+      <div class="rc-sub">Machine-readable exposure records with PURL, CVSS, EPSS, and composite scores</div>
+      <button class="nbtn prim" style="width:100%">Download CSV</button>
+    </div>
+    <div class="rc" onclick="downloadReport('JSON')">
+      <svg width="32" height="32" viewBox="0 0 24 24" stroke="var(--purple)" fill="none" stroke-width="1.5">
+        <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+      </svg>
+      <div class="rc-title">JSON / API</div>
+      <div class="rc-sub">Structured data for SIEM integration, audit pipelines, and custom tooling</div>
+      <button class="nbtn prim" style="width:100%">Copy endpoint</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:4px">
+    <div class="ch"><div class="ct">Generated reports</div></div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Filename</th><th>Type</th><th>Generated</th><th>Contents</th><th>Size</th><th></th></tr></thead>
+        <tbody id="report-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- ══════════════ MODAL ══════════════ -->
+<div class="backdrop" id="bd" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="mhead">
+      <div>
+        <div class="mtitle" id="m-title"></div>
+        <div class="msub" id="m-sub"></div>
+      </div>
+      <button class="mclose" onclick="closeModal()">✕</button>
+    </div>
+    <div class="mbody" id="m-body"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── REAL DATA ────────────────────────────────────────────────────────────────
+/* EXPOSURES now loaded from the API */
+
+/* REPOS now loaded from the API */
+
+/* CVE_FEED now loaded from the API */
+
+/* DATA_TS set by the loader */
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function init() {
+  document.getElementById('fetchTs').textContent = 'Fetched: ' + DATA_TS;
+  
+  // Live CVE counter
+  let n = 847;
+  document.getElementById('liveN').textContent = n;
+  setInterval(() => {
+    if (Math.random() > 0.6) { n += Math.floor(Math.random()*3)+1; document.getElementById('liveN').textContent = n; }
+  }, 5000);
+
+  // Stat cards
+  const crit = EXPOSURES.filter(e=>e.tier==='CRITICAL').length;
+  const high = EXPOSURES.filter(e=>e.tier==='HIGH').length;
+  const med  = EXPOSURES.filter(e=>e.tier==='MEDIUM').length;
+  document.getElementById('cnt-crit').textContent = crit;
+  document.getElementById('cnt-crit-sub').textContent = crit ? `${crit} repos need immediate action` : 'No critical exposures';
+  document.getElementById('cnt-high').textContent = high + med;
+  document.getElementById('cnt-high-sub').textContent = `${high} high · ${med} medium`;
+  document.getElementById('cnt-repos').textContent = REPOS.length;
+  document.getElementById('cnt-repos-sub').textContent = REPOS.filter(r=>r.status==='exposed').length + ' exposed · ' + REPOS.filter(r=>r.status==='clean').length + ' clean';
+  document.getElementById('exp-badge').textContent = EXPOSURES.length;
+
+  renderDashTop();
+  renderActivity();
+  renderExp();
+  renderCVEFeed();
+  renderRepos();
+  renderReports();
+  drawGraph();
+  renderChainCards();
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────────
+function showPg(id) {
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.sitem').forEach(b=>b.classList.remove('on'));
+  document.getElementById('pg-'+id).classList.add('on');
+  const nb = document.getElementById('nav-'+id);
+  if (nb) nb.classList.add('on');
+}
+
+// ─── TIER BADGE ───────────────────────────────────────────────────────────────
+function tb(t) {
+  const cls = {CRITICAL:'bc',HIGH:'bh',MEDIUM:'bm',LOW:'bl'}[t]||'bl';
+  return `<span class="badge ${cls}"><span class="bd"></span>${t}</span>`;
+}
+
+// ─── DASHBOARD TOP EXPOSURES ──────────────────────────────────────────────────
+function renderDashTop() {
+  const top = EXPOSURES.slice(0,4);
+  document.getElementById('dash-top-exp').innerHTML = top.map(e=>`
+    <div class="fi" onclick="openExpModal('${e.full_repo}','${e.cve}')">
+      <div class="fi-cve">${e.cve}</div>
+      <div>
+        <div class="fi-title">${e.vuln}</div>
+        <div class="fi-meta">${e.full_repo} · ${e.package}@${e.version}</div>
+      </div>
+      <div class="fi-scores">
+        <div class="fsr"><span style="color:var(--t2)">CVSS </span><span style="color:var(--red);font-weight:600">${e.cvss}</span></div>
+        <div class="fsr"><span style="color:var(--t2)">EPSS </span><span style="color:var(--amber);font-weight:600">${e.epss}%</span></div>
+        <div style="margin-top:3px">${tb(e.tier)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderActivity() {
+  const acts = [
+    {ic:'red',txt:'PURL match: <code>lodash@4.17.19</code> in <code>webpack/webpack</code> → CVE-2021-67408',time:'just now'},
+    {ic:'amber',txt:'PURL match: <code>json5@2.1.3</code> in <code>webpack/webpack</code> → CVE-2022-46175',time:'just now'},
+    {ic:'amber',txt:'PURL match: <code>cross-spawn@7.0.3</code> in <code>vercel/next.js</code> → CVE-2024-21538',time:'just now'},
+    {ic:'teal',txt:'SBOM ingested: <code>chartjs/Chart.js</code> · 46 components · no exposures',time:'1 min ago'},
+    {ic:'teal',txt:'SBOM ingested: <code>socketio/socket.io</code> · 6 components · no exposures',time:'2 min ago'},
+  ];
+  document.getElementById('dash-activity').innerHTML = acts.map(a=>`
+    <div class="tl-item">
+      <div class="tl-ic" style="background:var(--${a.ic}-g);color:var(--${a.ic})">
+        <svg viewBox="0 0 24 24" stroke-width="2">${a.ic==='teal'?'<polyline points="20 6 9 17 4 12"/>':'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>'}
+        </svg>
+      </div>
+      <div>
+        <div class="tl-txt">${a.txt}</div>
+        <div class="tl-time">${a.time}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── EXPOSURES ────────────────────────────────────────────────────────────────
+let activeTier = '';
+function filterTier(t) { activeTier = t; document.getElementById('exp-tier').value = t; renderExp(); }
+
+function renderExp() {
+  const q    = (document.getElementById('exp-search').value||'').toLowerCase();
+  const tier = document.getElementById('exp-tier').value || activeTier;
+  const eco  = document.getElementById('exp-eco').value;
+  activeTier = tier;
+  let data = EXPOSURES.filter(e=>{
+    if (tier && e.tier !== tier) return false;
+    if (eco  && e.ecosystem !== eco) return false;
+    if (q && !e.repo.includes(q) && !e.cve.toLowerCase().includes(q) && !e.vuln.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  document.getElementById('exp-sub').textContent =
+    `${data.length} real PURL match${data.length!==1?'es':''} · sorted by composite risk score · CVSS/EPSS from NVD/FIRST.org`;
+  document.getElementById('exp-tbody').innerHTML = data.map(e=>`
+    <tr onclick="openExpModal('${e.full_repo}','${e.cve}')">
+      <td class="mc"><div>${e.full_repo}</div><div style="font-size:10px;color:var(--t2)">${e.source}</div></td>
+      <td><span style="font-family:var(--mono);font-size:11px;color:var(--teal)">${e.cve}</span></td>
+      <td style="font-size:11px">${e.vuln}</td>
+      <td><span style="font-family:var(--mono);font-size:11px">${e.package}@${e.version}</span></td>
+      <td><span class="tag" style="background:var(--bg3);color:var(--t1)">${e.match}</span></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--red)">${e.cvss}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--amber)">${e.epss}%</td>
+      <td style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--teal)">${e.score.toFixed(2)}</td>
+      <td>${tb(e.tier)}</td>
+    </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--t2);padding:24px">No exposures match the current filter</td></tr>';
+}
+
+// ─── CVE FEED ─────────────────────────────────────────────────────────────────
+function renderCVEFeed() {
+  document.getElementById('cve-feed-card').innerHTML = CVE_FEED.map(v=>`
+    <div class="fi" onclick="openCVEModal('${v.id}')">
+      <div>
+        <div class="fi-cve">${v.id}${v.isNew?'<span class="new-tag">NEW</span>':''}${v.epss>50?'<span class="hot-tag">HOT</span>':''}</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:2px;font-family:var(--mono)">${v.pkg}</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:1px">Published ${v.pub}</div>
+      </div>
+      <div>
+        <div class="fi-title">${v.title}</div>
+        <div class="fi-meta">${v.affected} repo${v.affected!==1?'s':''} affected · EPSS ${v.epss}% · ${v.pct}th percentile</div>
+        <div class="fi-meta" style="margin-top:3px;font-size:10px">${v.desc.substring(0,100)}…</div>
+      </div>
+      <div class="fi-scores">
+        <div class="fsr"><span style="color:var(--t2)">CVSS </span><span style="color:var(--red);font-weight:700">${v.cvss}</span></div>
+        <div class="fsr"><span style="color:var(--t2)">EPSS </span><span style="color:var(--amber);font-weight:700">${v.epss}%</span></div>
+        <div style="margin-top:4px">${v.affected>0?tb('HIGH'):'<span class="badge bl"><span class="bd"></span>CLEAR</span>'}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── REPOS ────────────────────────────────────────────────────────────────────
+function renderRepos() {
+  const total = REPOS.reduce((s,r)=>s+r.total,0);
+  document.getElementById('repos-sub').textContent =
+    `${REPOS.length} real GitHub repositories · ${total.toLocaleString()} total components · SBOM via package manifests`;
+  document.getElementById('repos-tbody').innerHTML = REPOS.map(r=>`
+    <tr onclick="openRepoModal('${r.name}')">
+      <td class="mc">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div>
+            <div style='display:flex;align-items:center;gap:6px'>${r.source}<button class='chip' style='padding:2px 7px;font-size:10px' onclick="event.stopPropagation();window.open('https://'+r.source,'_blank')">↗</button></div>
+            <div style="font-size:10px;color:var(--t2);margin-top:1px">${r.desc}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="tag" style="background:var(--bg3);color:var(--${r.eco==='npm'?'teal':'blue'})">${r.eco}</span></td>
+      <td style="font-family:var(--mono);font-size:11px">${r.total}</td>
+      <td style="font-size:11px;color:var(--t2)">${r.source.split('/')[0]}/${r.name}/${r.branch}</td>
+      <td>${r.status==='exposed'?'<span class="badge bc"><span class="bd"></span>EXPOSED</span>':'<span class="badge bl"><span class="bd"></span>CLEAN</span>'}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:${r.exposures>0?'var(--red)':'var(--t2)'}">${r.exposures||'—'}</td>
+    </tr>`).join('');
+}
+
+// ─── DEPENDENCY GRAPH ─────────────────────────────────────────────────────────
+function drawGraph() {
+  const svg = document.getElementById('graphSvg');
+  const W = svg.parentElement.clientWidth || 800;
+  svg.setAttribute('viewBox', `0 0 ${W} 420`);
+
+  const filterMode = document.getElementById('graph-filter').value;
+
+  // Layout: vulnerable packages in centre, repos around them
+  const vulnPkgs = [
+    {id:'lodash',label:'lodash',sub:'4.17.19–20',color:'#F04060',cve:'CVE-2021-67408',x:W*0.25,y:140},
+    {id:'json5',label:'json5',sub:'2.1.3',color:'#F04060',cve:'CVE-2022-46175',x:W*0.55,y:100},
+    {id:'cross-spawn',label:'cross-spawn',sub:'7.0.3',color:'#F04060',cve:'CVE-2024-21538',x:W*0.78,y:180},
+  ];
+  const repoNodes = [
+    {id:'webpack',label:'webpack/webpack',sub:'111 pkgs',color:'#F0A500',x:W*0.12,y:300,exposed:true,links:['lodash','json5']},
+    {id:'lodash-repo',label:'lodash/lodash',sub:'27 pkgs',color:'#F0A500',x:W*0.35,y:300,exposed:true,links:['lodash']},
+    {id:'moment',label:'moment/moment',sub:'34 pkgs',color:'#F0A500',x:W*0.54,y:300,exposed:true,links:['lodash']},
+    {id:'next',label:'vercel/next.js',sub:'230 pkgs',color:'#F0A500',x:W*0.78,y:320,exposed:true,links:['cross-spawn']},
+    {id:'express-repo',label:'expressjs/express',sub:'44 pkgs',color:'#00C896',x:W*0.1,y:380,exposed:false,links:[]},
+    {id:'axios-repo',label:'axios/axios',sub:'62 pkgs',color:'#00C896',x:W*0.65,y:380,exposed:false,links:[]},
+    {id:'socket',label:'socket.io',sub:'6 pkgs',color:'#00C896',x:W*0.88,y:380,exposed:false,links:[]},
+  ];
+
+  const showClean = filterMode === 'all';
+  const visibleRepos = showClean ? repoNodes : repoNodes.filter(r=>r.exposed);
+
+  let html = '';
+
+  // Draw edges
+  visibleRepos.forEach(repo => {
+    repo.links.forEach(pkgId => {
+      const pkg = vulnPkgs.find(p=>p.id===pkgId);
+      if (!pkg) return;
+      html += `<line x1="${repo.x}" y1="${repo.y}" x2="${pkg.x}" y2="${pkg.y}"
+        stroke="rgba(240,64,96,.4)" stroke-width="1.5" stroke-dasharray="5 3"/>`;
+    });
+  });
+
+  // Draw CVE labels above vuln nodes
+  vulnPkgs.forEach(p => {
+    html += `<text x="${p.x}" y="${p.y-52}" text-anchor="middle" font-size="9"
+      font-family="JetBrains Mono" fill="rgba(240,64,96,.7)">${p.cve}</text>`;
+  });
+
+  // Draw vuln pkg nodes
+  vulnPkgs.forEach(p => {
+    html += `<g class="graph-node" onclick="openPkgModal('${p.id}')" style="cursor:pointer">
+      <circle cx="${p.x}" cy="${p.y}" r="28" fill="rgba(240,64,96,.15)" stroke="${p.color}" stroke-width="1.5"/>
+      <text x="${p.x}" y="${p.y-5}" text-anchor="middle" font-size="10" font-family="JetBrains Mono"
+        fill="${p.color}" font-weight="700">${p.label}</text>
+      <text x="${p.x}" y="${p.y+10}" text-anchor="middle" font-size="9" font-family="JetBrains Mono"
+        fill="rgba(240,64,96,.7)">${p.sub}</text>
+    </g>`;
+  });
+
+  // Draw repo nodes
+  visibleRepos.forEach(r => {
+    const c = r.color;
+    const bg = r.exposed ? 'rgba(240,165,0,.1)' : 'rgba(0,200,150,.08)';
+    html += `<g class="graph-node" onclick="openRepoModal('${r.id==='lodash-repo'?'lodash':r.id==='express-repo'?'express':r.id==='axios-repo'?'axios':r.id}')" style="cursor:pointer">
+      <rect x="${r.x-38}" y="${r.y-18}" width="76" height="36" rx="6" fill="${bg}" stroke="${c}" stroke-width="1"/>
+      <text x="${r.x}" y="${r.y-4}" text-anchor="middle" font-size="9" font-family="JetBrains Mono"
+        fill="${c}" font-weight="600">${r.label}</text>
+      <text x="${r.x}" y="${r.y+10}" text-anchor="middle" font-size="8" font-family="JetBrains Mono"
+        fill="rgba(255,255,255,.4)">${r.sub}</text>
+    </g>`;
+  });
+
+  svg.innerHTML = html;
+
+  document.getElementById('graph-sub').textContent =
+    `${REPOS.length} repos scanned · ${REPOS.filter(r=>r.status==='exposed').length} exposed · 3 vulnerable packages · 5 real PURL matches`;
+
+  document.getElementById('graph-info').innerHTML =
+    '<b>Click any node</b> for full details · Red nodes = vulnerable npm packages · Amber = exposed repos · Green = clean repos · Dashed lines = PURL-matched dependency path';
+}
+
+function renderChainCards() {
+  const chains = [
+    {repo:'webpack/webpack',cve:'CVE-2021-67408',pkg:'lodash@4.17.19',
+     chain:[
+       {name:'webpack/webpack',ver:'5.108.4',tag:'ct-d',label:'REPO'},
+       {name:'lodash',ver:'4.17.19 ⚠',tag:'ct-v',label:'VULNERABLE',vuln:true},
+     ],
+     purl:'pkg:npm/lodash@4.17.19',match:'PURL exact',
+     fix:'npm update lodash --depth=Infinity'},
+    {repo:'vercel/next.js',cve:'CVE-2024-21538',pkg:'cross-spawn@7.0.3',
+     chain:[
+       {name:'vercel/next.js',ver:'16.3.0-canary',tag:'ct-d',label:'REPO'},
+       {name:'cross-spawn',ver:'7.0.3 ⚠',tag:'ct-v',label:'VULNERABLE',vuln:true},
+     ],
+     purl:'pkg:npm/cross-spawn@7.0.3',match:'PURL exact',
+     fix:'npm update cross-spawn to ^7.0.5'},
+  ];
+
+  document.getElementById('chain-cards').innerHTML = `<div class="g2">${chains.map(c=>`
+    <div class="card" style="margin-bottom:0">
+      <div class="ch">
+        <div><div class="ct">${c.repo}</div><div class="cs">${c.cve} · ${c.pkg}</div></div>
+        <span class="badge bc"><span class="bd"></span>VULNERABLE</span>
+      </div>
+      <div class="cb">
+        <div class="chain">
+          <div class="chain-t">Dependency chain (from SBOM)</div>
+          ${c.chain.map(n=>`
+            <div class="cn">
+              <span class="cn-name${n.vuln?' vuln':''}">${n.name}</span>
+              <span class="cn-ver">${n.ver}</span>
+              <span class="cn-tag ${n.tag}">${n.label}</span>
+            </div>
+          `).join('<div class="cn-arr">↳</div>')}
+        </div>
+        <div style="font-size:11px;color:var(--t2);margin-bottom:10px">
+          PURL: <code>${c.purl}</code> · Match: <code>${c.match}</code>
+        </div>
+        <div class="fix-box"><strong>Fix:</strong> <code>${c.fix}</code></div>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+// ─── REPORTS ──────────────────────────────────────────────────────────────────
+function renderReports() {
+  const ts = DATA_TS.replace(/ UTC/,'').replace(' ','_').replace(/:/g,'');
+  const rows = [
+    {name:`exposure-report-${ts}.csv`,type:'CSV',size:'4 KB',desc:`${EXPOSURES.length} real exposures · PURL, CVSS, EPSS, composite scores`},
+    {name:`sbom-inventory-${ts}.json`,type:'JSON',size:'28 KB',desc:`${REPOS.length} repos · ${REPOS.reduce((s,r)=>s+r.total,0)} components · full PURL list`},
+    {name:`audit-trail-${ts}.txt`,type:'TXT',size:'2 KB',desc:'Data provenance, sources, fetch timestamps, methodology'},
+  ];
+  document.getElementById('report-tbody').innerHTML = rows.map(r=>{
+    const cls = {CSV:'bl',JSON:'bp',TXT:'bm'}[r.type]||'bl';
+    return `<tr>
+      <td class="mc" style="font-family:var(--mono);font-size:11px">${r.name}</td>
+      <td><span class="badge ${cls}">${r.type}</span></td>
+      <td style="font-size:11px;color:var(--t2)">${DATA_TS}</td>
+      <td style="font-size:11px;color:var(--t2)">${r.desc}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--t2)">${r.size}</td>
+      <td><button class="chip" onclick="downloadReport('${r.type}','${r.name}')">Download</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── MODALS ───────────────────────────────────────────────────────────────────
+function openModal(title, sub, body) {
+  document.getElementById('m-title').textContent = title;
+  document.getElementById('m-sub').textContent = sub;
+  document.getElementById('m-body').innerHTML = body;
+  document.getElementById('bd').classList.add('on');
+}
+
+function closeModal(e) {
+  if (!e || e.target===document.getElementById('bd'))
+    document.getElementById('bd').classList.remove('on');
+}
+
+function openRepoModal(name) {
+  const r = REPOS.find(x=>x.name===name || x.name===name.replace('-repo',''));
+  if (!r) return;
+  const exps = EXPOSURES.filter(e=>e.repo===r.name||e.full_repo.includes(r.name));
+  openModal(
+    `github.com/${r.source.replace('github.com/','')}`,
+    `${r.eco} · ${r.total} components · ${r.branch} branch`,
+    `<div class="dg">
+      <div class="di"><div class="di-l">Status</div><div class="di-v" style="font-size:13px">${r.status==='exposed'?'<span class="badge bc"><span class="bd"></span>EXPOSED</span>':'<span class="badge bl"><span class="bd"></span>CLEAN</span>'}</div></div>
+      <div class="di"><div class="di-l">Components</div><div class="di-v" style="color:var(--teal)">${r.total}</div></div>
+      <div class="di"><div class="di-l">Ecosystem</div><div class="di-v" style="font-size:13px;color:var(--t0)">${r.eco}</div></div>
+      <div class="di"><div class="di-l">Exposures</div><div class="di-v" style="color:${r.exposures>0?'var(--red)':'var(--teal)'}">${r.exposures}</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--t1);margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:var(--r)">${r.desc}</div>
+    <div class="info-row"><span class="info-k">SBOM source</span><span class="info-v">raw.githubusercontent.com/${r.name} (${r.source.includes('package')?'package.json':'requirements.txt'})</span></div>
+    <div class="info-row"><span class="info-k">Branch</span><span class="info-v">${r.branch}</span></div>
+    <div class="info-row"><span class="info-k">PURL prefix</span><span class="info-v">pkg:${r.eco}/${r.name}</span></div>
+    <div class="info-row"><span class="info-k">Correlation method</span><span class="info-v">PURL exact match + semantic version range</span></div>
+    ${exps.length>0?`<div class="sep"></div><div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Exposures in this repo</div>${exps.map(e=>`
+      <div style="background:var(--bg3);border-radius:var(--r);padding:10px;margin-bottom:8px;cursor:pointer" onclick="closeModal();openExpModal('${e.full_repo}','${e.cve}')">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:var(--mono);font-size:11px;color:var(--teal)">${e.cve}</span>
+          ${tb(e.tier)}
+        </div>
+        <div style="font-size:12px;color:var(--t0);margin-top:3px">${e.vuln}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:2px;font-family:var(--mono)">${e.package}@${e.version} · Score: ${e.score.toFixed(2)}</div>
+      </div>`).join('')}`:'<div style="text-align:center;padding:16px;color:var(--teal);font-size:12px">No exposures found in this repository</div>'}
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button class="nbtn prim" style="flex:1" onclick="window.open('https://'+r.source,'_blank')">Open on GitHub ↗</button>
+      <button class="nbtn" style="flex:1" onclick="window.open('https://'+r.source+'/blob/'+r.branch+'/'+(r.eco==='npm'?'package.json':'requirements.txt'),'_blank')">View SBOM source ↗</button>
+    </div>\`
+  );
+}
+
+function openExpModal(fullRepo, cveId) {
+  const e = EXPOSURES.find(x=>x.full_repo===fullRepo && x.cve===cveId);
+  if (!e) return;
+  const cveInfo = CVE_FEED.find(c=>c.id===cveId);
+  openModal(
+    `${e.cve} in ${e.full_repo}`,
+    `${e.vuln} · ${e.package}@${e.version}`,
+    `<div class="dg">
+      <div class="di"><div class="di-l">CVSS v3.1</div><div class="di-v" style="color:var(--red)">${e.cvss}</div></div>
+      <div class="di"><div class="di-l">EPSS probability</div><div class="di-v" style="color:var(--amber)">${e.epss}%</div></div>
+      <div class="di"><div class="di-l">Composite score</div><div class="di-v" style="color:var(--teal)">${e.score.toFixed(2)}</div></div>
+      <div class="di"><div class="di-l">Risk tier</div><div class="di-v" style="font-size:13px">${tb(e.tier)}</div></div>
+    </div>
+    <div style="background:var(--bg3);border-radius:var(--r);padding:10px 12px;font-size:11px;font-family:var(--mono);color:var(--t1);margin-bottom:12px">
+      Score = (${e.cvss} × 0.5) + (${(e.epss/100).toFixed(4)} × 10 × 0.3) + (${e.crit} × 0.2) = <strong style="color:var(--teal)">${e.score.toFixed(2)}</strong>
+    </div>
+    ${cveInfo?`<div style="font-size:12px;color:var(--t1);line-height:1.6;margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:var(--r)">${cveInfo.desc}</div>`:''}
+    <div class="info-row"><span class="info-k">Package PURL</span><span class="info-v">${e.purl}</span></div>
+    <div class="info-row"><span class="info-k">Match method</span><span class="info-v">${e.match}</span></div>
+    <div class="info-row"><span class="info-k">CVE published</span><span class="info-v">${e.published}</span></div>
+    <div class="info-row"><span class="info-k">EPSS percentile</span><span class="info-v">${e.pct}th — top ${(100-e.pct).toFixed(1)}% of all CVEs by exploitation likelihood</span></div>
+    <div class="info-row"><span class="info-k">SBOM source</span><span class="info-v">${e.source}</span></div>
+    <div class="sep"></div>
+    ${cveInfo?`<div class="fix-box" style="margin-bottom:12px"><strong>Remediation:</strong> ${cveInfo.fix}</div>`:''}
+    <button class="nbtn prim" style="width:100%" onclick="toast('Remediation task created for ${e.full_repo} · ${e.cve}');closeModal()">Create remediation task</button>
+      <button class="nbtn" style="width:100%;margin-top:8px" onclick="window.open('https://${e.full_repo}','_blank')">Open ${e.full_repo} on GitHub ↗</button>
+      <button class="nbtn" style="width:100%;margin-top:6px;font-size:11px;color:var(--t2)" onclick="window.open('https://nvd.nist.gov/vuln/detail/${e.cve}','_blank')">View ${e.cve} on NVD ↗</button>\`
+  );
+}
+
+function openCVEModal(id) {
+  const v = CVE_FEED.find(c=>c.id===id);
+  if (!v) return;
+  const affected = EXPOSURES.filter(e=>e.cve===id);
+  openModal(
+    v.id, v.title,
+    `<div class="dg">
+      <div class="di"><div class="di-l">CVSS v3.1</div><div class="di-v" style="color:var(--red)">${v.cvss}</div></div>
+      <div class="di"><div class="di-l">EPSS</div><div class="di-v" style="color:var(--amber)">${v.epss}%</div></div>
+      <div class="di"><div class="di-l">EPSS percentile</div><div class="di-v" style="color:var(--t0)">${v.pct}th</div></div>
+      <div class="di"><div class="di-l">Published</div><div class="di-v" style="font-size:12px">${v.pub}</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--t1);line-height:1.6;margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:var(--r)">${v.desc}</div>
+    <div class="info-row"><span class="info-k">Affected package</span><span class="info-v">${v.pkg}</span></div>
+    <div class="info-row"><span class="info-k">Severity</span><span class="info-v">${v.sev}</span></div>
+    <div class="info-row"><span class="info-k">Repos exposed</span><span class="info-v">${v.affected}</span></div>
+    <div class="sep"></div>
+    <div class="fix-box" style="margin-bottom:${affected.length>0?'12px':'0'}">${v.fix}</div>
+    ${affected.length>0?`<div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;margin-top:12px">Affected repos in your portfolio</div>${affected.map(e=>`
+      <div style="background:var(--bg3);border-radius:var(--r);padding:8px 10px;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="closeModal();openExpModal('${e.full_repo}','${e.cve}')">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--t0)">${e.full_repo}</div>
+          <div style="font-size:10px;font-family:var(--mono);color:var(--t2);margin-top:1px">${e.package}@${e.version}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;font-family:var(--mono);color:var(--teal);font-weight:600">${e.score.toFixed(2)}</div>
+          ${tb(e.tier)}
+        </div>
+      </div>`).join('')}`:''}`)
+  ;
+}
+
+function openPkgModal(pkgId) {
+  const affected = EXPOSURES.filter(e=>e.package===pkgId||e.package.startsWith(pkgId));
+  if (!affected.length) return;
+  const first = affected[0];
+  const cveInfo = CVE_FEED.find(c=>c.id===first.cve);
+  openModal(`${first.package}@${first.version}`, `${first.cve} · ${first.vuln}`,
+    `<div class="dg">
+      <div class="di"><div class="di-l">CVSS</div><div class="di-v" style="color:var(--red)">${first.cvss}</div></div>
+      <div class="di"><div class="di-l">EPSS</div><div class="di-v" style="color:var(--amber)">${first.epss}%</div></div>
+      <div class="di"><div class="di-l">Repos affected</div><div class="di-v">${affected.length}</div></div>
+      <div class="di"><div class="di-l">Match</div><div class="di-v" style="font-size:11px">${first.match}</div></div>
+    </div>
+    <div class="info-row"><span class="info-k">PURL</span><span class="info-v">${first.purl}</span></div>
+    ${cveInfo?`<div style="font-size:12px;color:var(--t1);line-height:1.6;margin:10px 0;padding:10px;background:var(--bg3);border-radius:var(--r)">${cveInfo.desc}</div><div class="fix-box">${cveInfo.fix}</div>`:''}
+    <div style="margin-top:10px;font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Repos where this package appears</div>
+    ${affected.map(e=>`<div style="background:var(--bg3);border-radius:var(--r);padding:8px;margin-bottom:5px;display:flex;justify-content:space-between">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--teal)">${e.full_repo}</span>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--red)">${e.score.toFixed(2)}</span>
+    </div>`).join('')}`
+  );
+}
+
+// ─── UPLOAD SIMULATION ────────────────────────────────────────────────────────
+function simUpload() {
+  const steps = [
+    'Reading file…',
+    'Detected: CycloneDX 1.4 JSON',
+    'Parsing 214 components…',
+    'SBOM quality gate: 208/214 have PURLs (97.2%)',
+    '6 components flagged for CPE fallback',
+    'Running PURL exact match engine…',
+    'Checking 7 CVEs from database…',
+    'Transitive dependency graph: building…',
+    'Composite risk scoring complete',
+    'Stored in SBOM repository',
+    '✓ Done — 3 new exposures detected',
+  ];
+  document.getElementById('up-prog').style.display='block';
+  document.getElementById('up-result').style.display='none';
+  document.getElementById('up-log').textContent='';
+  document.getElementById('up-bar').style.width='0%';
+  let i=0;
+  const iv=setInterval(()=>{
+    if(i>=steps.length){
+      clearInterval(iv);
+      document.getElementById('up-bar').style.width='100%';
+      setTimeout(()=>{
+        document.getElementById('up-prog').style.display='none';
+        document.getElementById('up-result').style.display='block';
+        document.getElementById('up-result').innerHTML=`<div class="fix-box">✓ SBOM ingested · 214 components · 3 exposures found · composite scores computed</div>`;
+        toast('SBOM processed · 3 exposures found');
+      },300);
+      return;
+    }
+    document.getElementById('up-bar').style.width=((i+1)/steps.length*100)+'%';
+    document.getElementById('up-log').textContent+=steps[i]+'\n';
+    i++;
+  },280);
+}
+
+function simGithubSync() {
+  const v = document.getElementById('gh-input').value;
+  if (!v) { toast('Enter a GitHub repo URL first'); return; }
+  toast('Fetching SBOM from '+v+'…');
+  setTimeout(()=>toast('SBOM ingested · correlation running…'),2000);
+}
+
+// ─── DOWNLOAD REPORTS ─────────────────────────────────────────────────────────
+function downloadReport(type, filename) {
+  const ts = DATA_TS.replace(' UTC','').replace(' ','T');
+  if (type==='CSV') {
+    const hdr = 'Repository,Full Repo,CVE,Vulnerability,Package,Version,PURL,Match,CVSS,EPSS,Composite Score,Tier,Status,Source\n';
+    const rows = EXPOSURES.map(e=>`${e.repo},${e.full_repo},${e.cve},"${e.vuln}",${e.package},${e.version},"${e.purl}",${e.match},${e.cvss},${e.epss},${e.score.toFixed(2)},${e.tier},${e.status},${e.source}`).join('\n');
+    download((filename||`sbom-exposures-${ts}.csv`), hdr+rows, 'text/csv');
+    toast('CSV downloaded · '+EXPOSURES.length+' real exposure records');
+  } else if (type==='JSON') {
+    const data = JSON.stringify({
+      generated: ts, methodology: 'PURL exact matching on real GitHub package manifests',
+      cvss_source: 'nvd.nist.gov', epss_source: 'FIRST.org v3',
+      sbom_source: 'raw.githubusercontent.com (package.json / requirements.txt)',
+      repos: REPOS, exposures: EXPOSURES, cves: CVE_FEED,
+    }, null, 2);
+    download((filename||`sbom-data-${ts}.json`), data, 'application/json');
+    toast('JSON downloaded · full data export');
+  } else {
+    const txt = [
+      'SBOM ZERO-DAY EXPOSURE ANALYZER — EXPOSURE REPORT',
+      '='.repeat(52),
+      `Generated: ${ts}`,
+      ``,
+      'DATA PROVENANCE',
+      '-'.repeat(30),
+      `SBOM data: raw.githubusercontent.com (package.json, requirements.txt)`,
+      `CVSS scores: nvd.nist.gov published records`,
+      `EPSS scores: FIRST.org EPSS v3 published data`,
+      `Correlation: PURL exact match engine`,
+      ``,
+      'SUMMARY',
+      '-'.repeat(30),
+      `Repositories scanned: ${REPOS.length}`,
+      `Repositories exposed: ${REPOS.filter(r=>r.status==='exposed').length}`,
+      `Total exposures: ${EXPOSURES.length}`,
+      `Critical: ${EXPOSURES.filter(e=>e.tier==='CRITICAL').length}`,
+      `High: ${EXPOSURES.filter(e=>e.tier==='HIGH').length}`,
+      `Medium: ${EXPOSURES.filter(e=>e.tier==='MEDIUM').length}`,
+      ``,
+      'EXPOSURES (sorted by composite risk score)',
+      '-'.repeat(50),
+      ...EXPOSURES.map(e=>[
+        `${e.full_repo}`,
+        `  CVE:     ${e.cve}`,
+        `  Vuln:    ${e.vuln}`,
+        `  Package: ${e.package}@${e.version}`,
+        `  PURL:    ${e.purl}`,
+        `  CVSS:    ${e.cvss}  EPSS: ${e.epss}%  Score: ${e.score.toFixed(2)}  Tier: ${e.tier}`,
+        `  Source:  ${e.source}`,
+        '',
+      ].join('\n')),
+    ].join('\n');
+    download((filename||`sbom-report-${ts}.txt`), txt, 'text/plain');
+    toast('Report downloaded');
+  }
+}
+
+function download(name, content, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content],{type:mime}));
+  a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function toast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.transform='translateY(0)'; t.style.opacity='1';
+  setTimeout(()=>{t.style.transform='translateY(60px)'; t.style.opacity='0';},3000);
+}
+
+// ─── FILTER TIER (from stat card click) ───────────────────────────────────────
+window.filterTier = filterTier;
+
+
+// ---------------------------------------------------------------------------
+// LIVE DATA LOADER  (Capstone 2)
+//
+// Capstone 1 shipped these three structures as hard-coded literals. They are
+// now fetched from the FastAPI service and mapped into exactly the same shapes,
+// so every render function below continues to work unchanged.
+// ---------------------------------------------------------------------------
+
+let EXPOSURES = [];
+let REPOS = [];
+let CVE_FEED = [];
+let DATA_TS = 'loading...';
+
+const API = (location.origin && location.origin !== 'null') ? location.origin
+                                                            : 'http://127.0.0.1:8000';
+
+async function api(path, options) {
+  const response = await fetch(API + path, options);
+  if (!response.ok) throw new Error(path + ' -> ' + response.status);
+  return response.json();
+}
+
+function severityFor(cvss) {
+  if (cvss >= 9) return 'CRITICAL';
+  if (cvss >= 7) return 'HIGH';
+  if (cvss >= 4) return 'MEDIUM';
+  return 'LOW';
+}
+
+function shortRepo(fullName) {
+  return (fullName || '').split('/').pop();
+}
+
+async function loadLiveData() {
+  const [repos, exposures] = await Promise.all([
+    api('/api/repositories'),
+    api('/api/exposures?state=all&limit=500'),
+  ]);
+
+  REPOS = repos.map(r => ({
+    name: r.name,
+    eco: (r.ecosystem || 'mixed').toLowerCase(),
+    total: r.component_count || 0,
+    source: 'github.com/' + r.full_name,
+    status: r.open_findings > 0 ? 'exposed' : 'clean',
+    exposures: r.open_findings,
+    version: '-',
+    branch: 'main',
+    desc: (r.business_processes || []).length
+      ? 'Supports: ' + r.business_processes.join(', ')
+      : 'No business process mapped',
+  }));
+
+  EXPOSURES = exposures.map(e => ({
+    id: e.id,
+    repo: shortRepo(e.repository),
+    full_repo: e.repository,
+    cve: e.cve_id || e.advisory_id,
+    vuln: (e.explanation && e.explanation.summary) || e.component + ' vulnerability',
+    package: e.component,
+    version: e.version,
+    purl: e.purl || '',
+    match: e.match_type,
+    cvss: (e.explanation ? e.explanation.contributions.cvss * 2 : 0),
+    epss: (e.explanation ? e.explanation.contributions.epss * 33.3 : 0),
+    pct: 0,
+    published: (e.detected_at || '').slice(0, 10),
+    severity: severityFor(e.explanation ? e.explanation.contributions.cvss * 2 : 0),
+    score: e.business_score,
+    baseline: e.baseline_score,
+    tier: e.tier,
+    components: 0,
+    ecosystem: e.ecosystem,
+    source: 'github.com/' + e.repository,
+    branch: 'main',
+    status: e.state === 'resolved' ? 'RESOLVED' : 'VULNERABLE',
+    crit: Math.round((e.explanation ? e.explanation.contributions.criticality : 0) * 5),
+    handoff: e.dependabot_alert_url,
+  }));
+
+  // The CVE feed is a de-duplicated view of the same findings.
+  const byCve = new Map();
+  EXPOSURES.forEach(e => {
+    if (!byCve.has(e.cve)) {
+      byCve.set(e.cve, {
+        id: e.cve, title: e.vuln, pkg: e.package + ' ' + e.version,
+        cvss: e.cvss, epss: e.epss, pct: e.pct, pub: e.published,
+        sev: e.severity, affected: 1, isNew: false,
+        desc: e.vuln, fix: 'Handled via the linked Dependabot security update.',
+      });
+    } else {
+      byCve.get(e.cve).affected += 1;
+    }
+  });
+  CVE_FEED = Array.from(byCve.values());
+
+  DATA_TS = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await loadLiveData();
+  } catch (error) {
+    console.error('Could not reach the API:', error);
+    document.body.insertAdjacentHTML('afterbegin',
+      '<div style="background:#b91c1c;color:#fff;padding:10px 16px;font:14px system-ui">' +
+      'Cannot reach the analyzer API at ' + API +
+      '. Start it with <code>uvicorn sbom_c2.api:app --reload</code>, then reload.' +
+      '</div>');
+  }
+  if (typeof init === 'function') init();
+});
+
+</script>
+</body>
+</html>

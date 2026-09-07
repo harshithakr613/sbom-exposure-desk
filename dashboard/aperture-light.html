@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aperture — exposure triage</title>
+<style>
+:root{
+  --bg:#F7F6F3; --surface:#FFFFFF; --sunken:#F0EEE9;
+  --ink:#16181D; --ink2:#565C6B; --ink3:#8D93A1;
+  --line:#E4E1DA; --line2:#CFCBC2;
+  --petrol:#0F4C4A;      /* structural, the product's colour */
+  --petrol-soft:#E3EFEE;
+  --ember:#A8321C;       /* risk. rationed so it means something */
+  --ember-soft:#FAEAE6;
+  --ochre:#8A6008; --ochre-soft:#FBF1DE;
+  --moss:#2C5F3E; --moss-soft:#E7F0E9;
+  --focus:#2554C7;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--sans);
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;font-weight:640;letter-spacing:-.015em}
+button,input,select{font:inherit}
+a{color:var(--focus)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ------------------------------------------------------------ chrome */
+.app{display:grid;grid-template-columns:224px 1fr;min-height:100vh}
+aside{background:var(--surface);border-right:1px solid var(--line);
+  position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+.mark{padding:20px 20px 16px;border-bottom:1px solid var(--line)}
+.mark .logo{display:flex;align-items:center;gap:9px}
+.mark .iris{width:19px;height:19px;border-radius:50%;border:2.5px solid var(--petrol);
+  position:relative;flex:none}
+.mark .iris::after{content:"";position:absolute;inset:3.5px;border-radius:50%;background:var(--ember)}
+.mark h1{font-size:16.5px;letter-spacing:-.02em}
+.mark .sub{margin:7px 0 0;font-size:11.5px;color:var(--ink3);font-family:var(--mono);
+  word-break:break-all}
+.menu{padding:10px 0;flex:1;overflow-y:auto}
+.menu button{display:flex;width:100%;align-items:center;justify-content:space-between;
+  gap:8px;padding:8px 20px;background:none;border:0;border-left:2px solid transparent;
+  color:var(--ink2);font-size:14px;cursor:pointer;text-align:left}
+.menu button:hover{background:var(--bg);color:var(--ink)}
+.menu button.on{color:var(--ink);font-weight:620;border-left-color:var(--petrol);background:var(--bg)}
+.menu .n{font-size:11.5px;color:var(--ink3)}
+.menu .sect{padding:15px 20px 5px;font-size:10.5px;color:var(--ink3);letter-spacing:.04em}
+.rail-foot{padding:14px 20px;border-top:1px solid var(--line);font-size:12px;color:var(--ink3)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--moss);margin-right:6px}
+.dot.off{background:var(--ember)}
+
+main{padding:0 0 70px}
+.bar{display:flex;align-items:center;gap:10px;padding:14px 34px;
+  border-bottom:1px solid var(--line);background:var(--surface);position:sticky;top:0;z-index:5}
+.bar .grow{flex:1}
+.btn{border:1px solid var(--line2);background:var(--surface);color:var(--ink);
+  padding:7px 13px;border-radius:5px;cursor:pointer;font-size:13.5px;white-space:nowrap}
+.btn:hover{border-color:var(--ink3)}
+.btn[disabled]{opacity:.45;cursor:progress}
+.btn.solid{background:var(--petrol);border-color:var(--petrol);color:#fff}
+.btn.solid:hover{background:#0b3a38}
+.wrap{padding:28px 34px;max-width:1220px}
+.head{margin-bottom:24px}
+.head h2{font-size:25px;letter-spacing:-.025em}
+.head p{margin:7px 0 0;color:var(--ink2);font-size:14.5px;max-width:66ch}
+.view{display:none}.view.on{display:block}
+
+/* -------------------------------------------------------------- today */
+.brief{background:var(--surface);border:1px solid var(--line);border-radius:9px;
+  padding:26px 28px;margin-bottom:24px}
+.brief .kicker{font-size:14px;color:var(--ink2);margin:0 0 4px}
+.brief .verdict{font-size:29px;line-height:1.24;letter-spacing:-.025em;margin:0;max-width:22ch}
+.brief .verdict em{font-style:normal;color:var(--ember)}
+.brief .aside{margin:16px 0 0;font-size:13.5px;color:var(--ink2);max-width:64ch}
+
+.jobs{display:grid;gap:12px;margin-bottom:24px}
+.job{background:var(--surface);border:1px solid var(--line);border-radius:9px;
+  padding:17px 20px;display:grid;grid-template-columns:34px 1fr auto;gap:16px;align-items:start}
+.job .idx{width:26px;height:26px;border-radius:50%;background:var(--petrol);color:#fff;
+  display:grid;place-items:center;font-size:13px;font-weight:640}
+.job h4{font-size:16px}
+.job .sub{margin:3px 0 0;font-size:13.5px;color:var(--ink2)}
+.job .tags{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap}
+.job .act{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.job .sc{font-size:21px;font-weight:640}
+
+.chip{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11.5px;white-space:nowrap}
+.c-crit{background:var(--ember-soft);color:var(--ember)}
+.c-high{background:var(--ochre-soft);color:var(--ochre)}
+.c-med{background:var(--sunken);color:var(--ink2)}
+.c-low{background:var(--sunken);color:var(--ink3)}
+.c-ok{background:var(--moss-soft);color:var(--moss)}
+.c-reg{background:var(--petrol-soft);color:var(--petrol)}
+
+/* ------------------------------------------------------------- funnel */
+.aperture{background:var(--surface);border:1px solid var(--line);border-radius:9px;
+  padding:24px 28px;margin-bottom:24px}
+.aperture h3{font-size:14px;margin-bottom:16px}
+.ap-row{display:grid;grid-template-columns:180px 1fr 88px;gap:16px;align-items:center;padding:9px 0}
+.ap-row+.ap-row{border-top:1px solid var(--line)}
+.ap-row .l{font-size:13.5px;color:var(--ink2)}
+.ap-row .t{height:24px;background:var(--sunken);border-radius:3px;position:relative;overflow:hidden}
+.ap-row .t i{position:absolute;inset:0 auto 0 0;background:var(--petrol);border-radius:3px;
+  transition:width .5s cubic-bezier(.2,.7,.3,1)}
+.ap-row.last .t i{background:var(--ember)}
+.ap-row .v{text-align:right;font-size:18px;font-weight:640}
+.ap-row .note{grid-column:2/4;font-size:12.5px;color:var(--ink3);margin-top:-5px}
+
+/* ------------------------------------------------------------- stats */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:24px}
+.cell{background:var(--surface);padding:15px 17px}
+.cell .k{font-size:12.5px;color:var(--ink2);margin-bottom:5px}
+.cell .v{font-size:25px;font-weight:640;line-height:1.08}
+.cell .v small{font-size:12.5px;font-weight:400;color:var(--ink3);margin-left:6px}
+.cell.risk .v{color:var(--ember)} .cell.good .v{color:var(--moss)}
+
+/* ------------------------------------------------------- reorder view */
+.reorder{background:var(--surface);border:1px solid var(--line);border-radius:9px;
+  padding:22px 26px 26px;margin-bottom:24px;position:relative}
+.reorder .cols{display:grid;grid-template-columns:1fr 108px 1fr;gap:0}
+.reorder h4{font-size:13px;color:var(--ink2);margin-bottom:10px}
+.rank{display:flex;align-items:center;gap:9px;height:31px;font-size:13px}
+.rank .p{width:19px;color:var(--ink3);font-size:11.5px;text-align:right}
+.rank .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank.hi{font-weight:640}
+#wires{position:absolute;pointer-events:none}
+.legend{display:flex;gap:16px;margin-top:16px;font-size:12.5px;color:var(--ink2);flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:16px;height:2.5px;display:inline-block;border-radius:2px}
+
+/* ----------------------------------------------------------- simulator */
+.sim{display:grid;grid-template-columns:270px 1fr;gap:24px}
+.dials{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:20px}
+.dial{margin-bottom:20px}
+.dial .top{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:7px}
+.dial .top b{font-weight:640}
+input[type=range]{width:100%;accent-color:var(--petrol)}
+.dial .exp{font-size:12px;color:var(--ink3);margin-top:5px}
+.sum{font-size:12.5px;padding:10px 12px;border-radius:6px;background:var(--sunken);color:var(--ink2)}
+.sum.bad{background:var(--ember-soft);color:var(--ember)}
+
+/* -------------------------------------------------------------- table */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:9px;
+  overflow:hidden;margin-bottom:24px}
+.panel>h3{padding:14px 20px;font-size:14px;border-bottom:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;padding:10px 16px;font-weight:620;font-size:12.5px;color:var(--ink2);
+  border-bottom:1px solid var(--line);background:var(--bg)}
+td{padding:10px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.r{cursor:pointer} tr.r:hover td{background:var(--bg)}
+td.n{text-align:right}
+.nm{font-weight:620}
+.mo{font-family:var(--mono);font-size:12.5px;color:var(--ink2)}
+tr.det td{background:var(--bg);padding:18px 20px 20px}
+.why{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:22px}
+.why h5{margin:0 0 9px;font-size:12.5px;color:var(--ink2);font-weight:620}
+.split{display:flex;height:9px;border-radius:3px;overflow:hidden;background:var(--sunken);margin-bottom:9px}
+.split i{display:block}
+.keys{display:flex;gap:14px;font-size:12px;color:var(--ink2);flex-wrap:wrap}
+.keys span{display:flex;align-items:center;gap:5px}
+.keys b{width:9px;height:9px;border-radius:2px;display:inline-block}
+dl.f{margin:0;font-size:13px} dl.f div{display:flex;justify-content:space-between;gap:12px;padding:2.5px 0}
+dl.f dt{color:var(--ink2)} dl.f dd{margin:0;text-align:right}
+
+/* --------------------------------------------------------------- form */
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:15px;padding:20px}
+label{display:block;font-size:12.5px;color:var(--ink2);margin-bottom:5px}
+.form input,.form select{width:100%;padding:8px 10px;border:1px solid var(--line2);
+  border-radius:5px;background:var(--surface);color:var(--ink);font-size:14px}
+.form .wide{grid-column:1/-1}
+.form .foot{grid-column:1/-1;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.filters{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);
+  flex-wrap:wrap;align-items:center}
+.filters select,.filters input{padding:6px 9px;border:1px solid var(--line2);border-radius:5px;
+  background:var(--surface);color:var(--ink);font-size:13.5px}
+.filters .grow{flex:1}
+.hint{font-size:12.5px;color:var(--ink3);margin:0}
+.blank{padding:34px 20px;color:var(--ink2)}
+.blank b{display:block;color:var(--ink);margin-bottom:4px}
+#toast{position:fixed;right:22px;bottom:22px;background:var(--ink);color:#fff;padding:12px 17px;
+  border-radius:7px;font-size:13.5px;max-width:400px;opacity:0;transform:translateY(8px);
+  transition:opacity .16s,transform .16s;pointer-events:none;z-index:20}
+#toast.on{opacity:1;transform:none}
+@media(max-width:900px){
+  .app{grid-template-columns:1fr}
+  aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .wrap,.bar{padding-left:16px;padding-right:16px}
+  .sim{grid-template-columns:1fr}
+  .reorder .cols{grid-template-columns:1fr}
+  #wires{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <div class="mark">
+    <div class="logo"><span class="iris"></span><h1>Aperture</h1></div>
+    <p class="sub" id="org">connecting…</p>
+  </div>
+  <div class="menu">
+    <button class="on" data-v="today">Today <span class="n" id="n-today"></span></button>
+    <button data-v="queue">All findings <span class="n" id="n-queue"></span></button>
+    <button data-v="quick">Quick wins <span class="n" id="n-quick"></span></button>
+    <div class="sect">EVIDENCE</div>
+    <button data-v="reorder">What business context changed</button>
+    <button data-v="sim">Weighting simulator</button>
+    <button data-v="blast">Blast radius</button>
+    <div class="sect">CONFIGURE</div>
+    <button data-v="context">Business context <span class="n" id="n-bp"></span></button>
+    <button data-v="repos">Repositories <span class="n" id="n-repo"></span></button>
+    <div class="sect">MEASURE</div>
+    <button data-v="impact">Risk reduction</button>
+    <button data-v="quality">SBOM quality</button>
+  </div>
+  <div class="rail-foot"><span class="dot" id="live"></span><span id="livetxt">checking…</span></div>
+</aside>
+
+<main>
+<div class="bar">
+  <button class="btn" id="b-sync">Scan repositories</button>
+  <button class="btn" id="b-corr">Link Dependabot</button>
+  <button class="btn solid" id="b-refresh">Check for fixes</button>
+  <span class="grow"></span>
+  <button class="btn" id="b-csv">CSV</button>
+  <button class="btn" id="b-pdf">Report</button>
+</div>
+
+<!-- ============================================================ TODAY -->
+<section class="view on" id="v-today"><div class="wrap">
+  <div class="brief">
+    <p class="kicker" id="brief-date"></p>
+    <p class="verdict" id="brief-verdict">Loading…</p>
+    <p class="aside" id="brief-aside"></p>
+  </div>
+  <div class="jobs" id="jobs"></div>
+  <div class="aperture">
+    <h3>How the list narrowed</h3>
+    <div id="ap"></div>
+  </div>
+  <div class="grid" id="today-stats"></div>
+</div></section>
+
+<!-- ============================================================ QUEUE -->
+<section class="view" id="v-queue"><div class="wrap">
+  <div class="head"><h2>All findings</h2>
+    <p>Ordered by business impact. Open any row to see the three factors behind
+       its score and where the upgrade path leads.</p></div>
+  <div class="panel">
+    <div class="filters">
+      <select id="f-state"><option value="open">Open</option>
+        <option value="resolved">Fixed</option><option value="all">All</option></select>
+      <select id="f-tier"><option value="">Every tier</option><option>CRITICAL</option>
+        <option>HIGH</option><option>MEDIUM</option><option>LOW</option></select>
+      <input id="f-text" placeholder="Repository or package" class="grow">
+      <label style="display:flex;gap:6px;align-items:center;margin:0;font-size:13px">
+        <input type="checkbox" id="f-dd" checked> merge duplicates</label>
+      <span class="hint" id="q-count"></span>
+    </div>
+    <table><thead><tr><th style="width:28px"></th><th>Repository</th>
+      <th>Business process</th><th>Package</th><th>Advisory</th>
+      <th class="n">Score</th><th class="n">Was</th><th>Tier</th></tr></thead>
+      <tbody id="q-body"></tbody></table>
+  </div>
+</div></section>
+
+<!-- ============================================================ QUICK -->
+<section class="view" id="v-quick"><div class="wrap">
+  <div class="head"><h2>Quick wins</h2>
+    <p>Matters to the business and cheap to fix. Effort never reduces a finding's
+       risk — it decides what is worth the next twenty minutes.</p></div>
+  <div class="panel"><table><thead><tr><th>Repository</th><th>Business process</th>
+    <th>Upgrade</th><th>Effort</th><th class="n">Risk</th><th class="n">Per effort</th>
+    <th></th></tr></thead><tbody id="qw-body"></tbody></table></div>
+</div></section>
+
+<!-- ========================================================== REORDER -->
+<section class="view" id="v-reorder"><div class="wrap">
+  <div class="head"><h2>What business context changed</h2>
+    <p>The same twenty findings, ordered two ways. On the left, technical severity
+       and exploitation probability alone. On the right, the same findings once
+       criticality is derived from business requirements.</p></div>
+  <div class="reorder">
+    <div class="cols">
+      <div><h4>Ranked by technical score</h4><div id="col-l"></div></div>
+      <div></div>
+      <div><h4>Ranked with business context</h4><div id="col-r"></div></div>
+    </div>
+    <svg id="wires"></svg>
+    <div class="legend">
+      <span><i style="background:var(--moss)"></i>Rose \u2014 business-critical, was buried</span>
+      <span><i style="background:var(--ember)"></i>Fell \u2014 technically loud, low consequence</span>
+      <span><i style="background:var(--line2)"></i>Unchanged</span>
+    </div>
+  </div>
+  <div class="grid" id="reorder-stats"></div>
+</div></section>
+
+<!-- ============================================================== SIM -->
+<section class="view" id="v-sim"><div class="wrap">
+  <div class="head"><h2>Weighting simulator</h2>
+    <p>Change how the three factors are weighted and watch the queue reorder.
+       This is the sensitivity analysis made interactive: if the ordering holds
+       as the weights move, it is not an artefact of one particular choice.</p></div>
+  <div class="sim">
+    <div class="dials">
+      <div class="dial"><div class="top"><span>Technical severity</span><b id="w1v">0.50</b></div>
+        <input type="range" id="w1" min="0" max="100" value="50">
+        <p class="exp">CVSS base score</p></div>
+      <div class="dial"><div class="top"><span>Exploitation likelihood</span><b id="w2v">0.30</b></div>
+        <input type="range" id="w2" min="0" max="100" value="30">
+        <p class="exp">EPSS probability</p></div>
+      <div class="dial"><div class="top"><span>Business impact</span><b id="w3v">0.20</b></div>
+        <input type="range" id="w3" min="0" max="100" value="20">
+        <p class="exp">Derived from business requirements</p></div>
+      <div class="dial"><div class="top"><span>Compliance uplift</span><b id="w4v">10%</b></div>
+        <input type="range" id="w4" min="0" max="25" value="10">
+        <p class="exp">Added per regulatory regime, capped at 25%</p></div>
+      <p class="sum" id="sim-sum"></p>
+      <p style="margin-top:12px"><button class="btn" id="b-reset">Reset to the published model</button></p>
+    </div>
+    <div class="panel" style="margin:0">
+      <h3 id="sim-head">Top findings under these weights</h3>
+      <table><thead><tr><th class="n" style="width:44px">Rank</th><th>Repository</th>
+        <th>Business process</th><th>Package</th><th class="n">Score</th>
+        <th class="n">Moved</th></tr></thead><tbody id="sim-body"></tbody></table>
+    </div>
+  </div>
+</div></section>
+
+<!-- ============================================================ BLAST -->
+<section class="view" id="v-blast"><div class="wrap">
+  <div class="head"><h2>Blast radius</h2>
+    <p>One package fix can protect several business processes at once. These
+       advisories appear in more than one repository.</p></div>
+  <div id="blast-cards"></div>
+</div></section>
+
+<!-- ========================================================== CONTEXT -->
+<section class="view" id="v-context"><div class="wrap">
+  <div class="head"><h2>Business context</h2>
+    <p>Repositories do not know what they do for the business. These attributes
+       come from Business Requirements Documents, and criticality is derived from
+       them rather than guessed.</p></div>
+  <div class="panel"><h3>Add a business process</h3>
+    <div class="form">
+      <div><label>Process name</label><input id="p-name" placeholder="Payment Processing"></div>
+      <div><label>Owner</label><input id="p-owner" placeholder="Payments Engineering"></div>
+      <div><label>Revenue dependency</label><select id="p-rev">
+        <option>none</option><option>indirect</option><option>direct</option></select></div>
+      <div><label>Customer facing</label><select id="p-cust">
+        <option value="false">No</option><option value="true">Yes</option></select></div>
+      <div><label>Availability requirement</label><select id="p-avail">
+        <option>low</option><option>medium</option><option>high</option>
+        <option>critical</option></select></div>
+      <div><label>Data sensitivity</label><select id="p-data">
+        <option>public</option><option>internal</option><option>confidential</option>
+        <option>regulated</option></select></div>
+      <div><label>Regulatory scope</label><input id="p-reg" placeholder="PCI-DSS, GDPR"></div>
+      <div><label>Source document</label><input id="p-doc" placeholder="BRD-PAY-001"></div>
+      <div><label>Section</label><input id="p-ref" placeholder="s.3.1 Business Criticality"></div>
+      <div class="wide"><label>Map to repository</label><select id="p-repo"></select></div>
+      <div class="foot"><button class="btn solid" id="b-add">Save and rescore</button>
+        <p class="hint">Every finding on the mapped repository is rescored immediately.</p></div>
+    </div>
+  </div>
+  <div class="panel"><h3>Defined processes</h3><table><thead><tr><th>Process</th>
+    <th>Repositories</th><th>Revenue</th><th>Customer</th><th>Availability</th>
+    <th>Data</th><th>Regulatory</th><th>Source</th></tr></thead>
+    <tbody id="bp-body"></tbody></table></div>
+</div></section>
+
+<!-- ============================================================ REPOS -->
+<section class="view" id="v-repos"><div class="wrap">
+  <div class="head"><h2>Repositories</h2>
+    <p>A repository with no business process mapped is unknown risk, not low
+       risk, so it surfaces here rather than sinking down the queue.</p></div>
+  <div class="panel"><table><thead><tr><th>Repository</th><th>Business process</th>
+    <th>Regulatory scope</th><th class="n">Open</th><th>Last scanned</th></tr></thead>
+    <tbody id="repo-body"></tbody></table></div>
+</div></section>
+
+<!-- =========================================================== IMPACT -->
+<section class="view" id="v-impact"><div class="wrap">
+  <div class="head"><h2>Risk reduction</h2>
+    <p>Measured from resolution timestamps recorded by GitHub, not estimated.</p></div>
+  <div class="grid" id="im-ops"></div>
+  <div class="grid" id="im-biz"></div>
+  <div class="panel"><h3>Business processes still exposed</h3>
+    <div id="at-risk" class="blank"></div></div>
+  <p><button class="btn" id="b-snap">Save snapshot</button></p>
+</div></section>
+
+<!-- ========================================================== QUALITY -->
+<section class="view" id="v-quality"><div class="wrap">
+  <div class="head"><h2>SBOM quality</h2>
+    <p>Correlation needs component identifiers. Where an SBOM lacks them the gap
+       is reported rather than hidden, because a silent gap reads as safety.</p></div>
+  <div class="panel"><table><thead><tr><th>Repository</th><th>Source</th>
+    <th class="n">Quality</th><th>Gate</th><th>Dependency chains</th></tr></thead>
+    <tbody id="qual-body"></tbody></table></div>
+</div></section>
+
+</main></div>
+<div id="toast"></div>
+
+<script>
+const API=(location.origin&&location.origin!=='null')?location.origin:'http://127.0.0.1:8000';
+const S={ex:[],quick:[]};
+const $=s=>document.querySelector(s);
+const el=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;
+  if(x!==undefined)n.textContent=x;return n;};
+const N=n=>(n==null)?'\u2014':Number(n).toLocaleString();
+const shortName=r=>(r||'').split('/').pop();
+const tierChip=t=>({CRITICAL:'c-crit',HIGH:'c-high',MEDIUM:'c-med',LOW:'c-low'})[t]||'c-med';
+
+let tt;function toast(m,ms=3600){const t=$('#toast');t.textContent=m;t.classList.add('on');
+  clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),ms);}
+async function api(p,o){const r=await fetch(API+p,o);
+  if(!r.ok)throw new Error('server returned '+r.status);return r.json();}
+
+document.querySelectorAll('.menu button[data-v]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.menu button').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  b.classList.add('on');$('#v-'+b.dataset.v).classList.add('on');
+  if(b.dataset.v==='reorder')drawReorder();
+});
+
+async function act(btn,busy,path,msg){
+  btn.disabled=true;const was=btn.textContent;btn.textContent=busy;
+  try{const r=await api(path,{method:'POST'});toast(msg(r));await loadAll();}
+  catch(e){toast('That did not complete: '+e.message,7000);}
+  finally{btn.disabled=false;btn.textContent=was;}
+}
+$('#b-sync').onclick=e=>act(e.target,'Scanning\u2026','/api/sync',
+  r=>`Scanned ${r.repositories} repositories, ${N(r.components)} components, ${N(r.exposures)} new findings.`);
+$('#b-corr').onclick=e=>act(e.target,'Linking\u2026','/api/remediation/correlate',
+  r=>`Read ${N(r.alerts_seen)} Dependabot alerts.`);
+$('#b-refresh').onclick=e=>act(e.target,'Checking\u2026','/api/remediation/refresh',
+  r=>r.resolved?`${r.resolved} finding${r.resolved>1?'s are':' is'} now fixed.`:'Nothing new fixed yet.');
+$('#b-snap').onclick=e=>act(e.target,'Saving\u2026','/api/impact/snapshot',()=>'Snapshot saved.');
+$('#b-csv').onclick=()=>location.href=API+'/api/export/csv?state='+$('#f-state').value;
+$('#b-pdf').onclick=()=>location.href=API+'/api/report?state='+$('#f-state').value;
+
+/* ---- factor values recovered exactly from the stored contributions ---- */
+function factors(e){
+  const c=(e.explanation||{}).contributions||{};
+  return {cvss:(c.cvss||0)/5, epss:(c.epss||0)/3, crit:(c.criticality||0)/2,
+          regimes:((e.explanation||{}).regimes||[]).length};
+}
+function scoreWith(e,w1,w2,w3,up){
+  const f=factors(e);
+  const base=f.cvss*w1+f.epss*w2+f.crit*w3;
+  const mult=1+Math.min(f.regimes*up,0.25);
+  return Math.min(base*mult,1)*10;
+}
+
+/* ------------------------------------------------------------- TODAY */
+function renderToday(f,im){
+  const open=S.ex.filter(e=>e.state!=='open'?false:true);
+  const crit=im.operations.open_by_tier.CRITICAL||0;
+  $('#brief-date').textContent=new Date().toLocaleDateString(undefined,
+    {weekday:'long',day:'numeric',month:'long'});
+  $('#brief-verdict').innerHTML=
+    `You have <em>${N(crit)}</em> findings that threaten a business-critical service.`;
+  $('#brief-aside').textContent=
+    `They sit inside ${N(f.stages[1].count)} total findings across ${N(f.stages[0].count)} `
+    +`components. ${N(f.patch_level_quick_wins)} of the open findings need only a `
+    +`backwards-compatible upgrade.`;
+
+  const jobs=$('#jobs');jobs.innerHTML='';
+  const picks=S.quick.length?S.quick.slice(0,3):null;
+  const top=picks||open.slice(0,3).map(e=>({
+    repository:e.repository,business_process:(e.explanation||{}).driving_process,
+    upgrade:e.version+' \u2192 '+(e.first_patched_version||'?'),
+    fix_effort_label:e.fix_effort_label,business_score:e.business_score,
+    quick_win_score:e.business_score,dependabot_alert_url:e.dependabot_alert_url,
+    cve_id:e.cve_id,component:e.component}));
+  if(!top.length){jobs.innerHTML='<div class="job"><div></div><div><h4>Nothing to do yet</h4>'
+    +'<p class="sub">Scan the repositories to pick up findings.</p></div><div></div></div>';}
+  top.forEach((q,i)=>{
+    const j=el('div','job');
+    j.append(el('div','idx',String(i+1)));
+    const mid=el('div');
+    mid.append(el('h4','',(q.business_process||shortName(q.repository))+' is exposed'));
+    mid.append(el('p','sub',
+      `${q.component||''} in ${shortName(q.repository)} \u2014 upgrade ${q.upgrade||''}`));
+    const tags=el('div','tags');
+    if(q.fix_effort_label)tags.append(Object.assign(el('span','chip c-ok',q.fix_effort_label)));
+    if(q.cve_id)tags.append(el('span','chip c-med',q.cve_id));
+    mid.append(tags);j.append(mid);
+    const act=el('div','act');
+    act.append(el('div','sc',(q.business_score||0).toFixed(1)));
+    if(q.dependabot_alert_url){
+      const a=document.createElement('a');a.href=q.dependabot_alert_url;a.target='_blank';
+      a.rel='noopener';a.className='btn solid';a.textContent='Fix it';
+      a.style.cssText='text-decoration:none';act.append(a);
+    }
+    j.append(act);jobs.append(j);
+  });
+
+  const ap=$('#ap');ap.innerHTML='';const top0=f.stages[0].count||1;
+  f.stages.forEach((s,i)=>{
+    const r=el('div','ap-row'+(i===f.stages.length-1?' last':''));
+    r.append(el('div','l',s.stage));
+    const t=el('div','t'),fill=el('i');
+    fill.style.width=Math.max(0.6,(s.count/top0)*100)+'%';t.append(fill);r.append(t);
+    r.append(el('div','v',N(s.count)));r.append(el('div','note',s.note));ap.append(r);
+  });
+
+  cells('#today-stats',[
+    ['Open findings',N(im.operations.open)],
+    ['Business-critical',N(crit),'risk'],
+    ['Quick wins',N(f.patch_level_quick_wins),'good'],
+    ['Regulated scope',N(f.in_regulatory_scope)],
+    ['Fixed',N(im.operations.resolved),'good'],
+    ['Time to fix',im.operations.mttr_hours==null?'\u2014':im.operations.mttr_hours+' h','',
+     im.operations.mttr_sample_size?`over ${im.operations.mttr_sample_size}`:'none yet'],
+  ]);
+}
+function cells(sel,items){const g=$(sel);g.innerHTML='';
+  items.forEach(([k,v,c,sub])=>{const d=el('div','cell'+(c?' '+c:''));
+    d.append(el('div','k',k));const val=el('div','v',v);
+    if(sub)val.append(el('small','',sub));d.append(val);g.append(d);});}
+
+/* ------------------------------------------------------------- QUEUE */
+function splitBar(c){
+  const t=(c.cvss||0)+(c.epss||0)+(c.criticality||0)||1;const w=el('div','split');
+  [['#0F4C4A',c.cvss],['#A8321C',c.epss],['#2C5F3E',c.criticality]].forEach(([col,v])=>{
+    const i=el('i');i.style.background=col;i.style.width=((v||0)/t*100)+'%';w.append(i);});
+  return w;
+}
+function renderQueue(){
+  const tier=$('#f-tier').value,q=$('#f-text').value.trim().toLowerCase();
+  const rows=S.ex.filter(e=>(!tier||e.tier===tier)&&
+    (!q||((e.repository||'')+' '+(e.component||'')).toLowerCase().includes(q)));
+  $('#q-count').textContent=rows.length+' shown';
+  const b=$('#q-body');b.innerHTML='';
+  if(!rows.length){const tr=el('tr'),td=el('td');td.colSpan=8;td.className='blank';
+    td.innerHTML='<b>Nothing matches.</b>Widen the filters or scan the repositories.';
+    tr.append(td);b.append(tr);return;}
+  rows.slice(0,250).forEach(e=>{
+    const ex=e.explanation||{},c=ex.contributions||{};
+    const tr=el('tr','r');
+    tr.append(el('td','',"\u002B"));
+    tr.append(el('td','nm',shortName(e.repository)));
+    tr.append(el('td','',ex.driving_process||'Not mapped'));
+    const p=el('td');p.append(document.createTextNode(e.component||''));
+    p.append(el('div','mo',e.version||'version unresolved'));tr.append(p);
+    tr.append(el('td','mo',e.cve_id||e.advisory_id||''));
+    tr.append(el('td','n',e.business_score==null?'\u2014':e.business_score.toFixed(2)));
+    tr.append(el('td','n',e.baseline_score==null?'\u2014':e.baseline_score.toFixed(2)));
+    const t=el('td');t.innerHTML=e.state==='resolved'
+      ?'<span class="chip c-ok">fixed</span>'
+      :`<span class="chip ${tierChip(e.tier)}">${(e.tier||'').toLowerCase()}</span>`;
+    tr.append(t);
+    const d=el('tr','det');d.style.display='none';
+    const dt=el('td');dt.colSpan=8;const g=el('div','why');
+    const a=el('div');a.append(el('h5','','Why it ranks here'));a.append(splitBar(c));
+    const k=el('div','keys');
+    k.innerHTML=`<span><b style="background:#0F4C4A"></b>Severity ${(c.cvss||0).toFixed(2)}</span>
+      <span><b style="background:#A8321C"></b>Exploitation ${(c.epss||0).toFixed(2)}</span>
+      <span><b style="background:#2C5F3E"></b>Business ${(c.criticality||0).toFixed(2)}</span>`;
+    a.append(k);
+    if(ex.compliance_factor>1)a.append(el('p','hint',
+      `Uplifted \u00d7${ex.compliance_factor} for ${(ex.regimes||[]).join(', ')}.`));
+    g.append(a);
+    const bx=el('div');bx.append(el('h5','','Finding'));
+    const dl=document.createElement('dl');dl.className='f';
+    [['Repository',e.repository],['Dependency',e.direct?'Direct':'Transitive'],
+     ['Matched by',(e.match_type||'').replace(/_/g,' ').toLowerCase()],
+     ['Upgrade to',e.first_patched_version||'no fix published'],
+     ['Effort',e.fix_effort_label||'unknown']].forEach(([kk,vv])=>{
+      const r=el('div');r.append(el('dt','',kk));r.append(el('dd','',vv||'\u2014'));dl.append(r);});
+    bx.append(dl);g.append(bx);
+    const cc=el('div');cc.append(el('h5','','Fix it'));
+    if(e.dependabot_alert_url){
+      const link=document.createElement('a');link.href=e.dependabot_alert_url;
+      link.target='_blank';link.rel='noopener';link.className='btn solid';
+      link.textContent='Open Dependabot alert';link.style.cssText='display:inline-block;text-decoration:none';
+      cc.append(link);
+      cc.append(el('p','hint','Merge the security update on GitHub. Aperture never writes to your repositories.'));
+    } else cc.append(el('p','hint','No Dependabot alert linked. Link alerts from the toolbar, or upgrade manually.'));
+    g.append(cc);dt.append(g);d.append(dt);
+    tr.onclick=()=>{const o=d.style.display!=='none';d.style.display=o?'none':'';
+      tr.firstChild.textContent=o?"\u002B":"\u2212";};
+    b.append(tr);b.append(d);
+  });
+}
+
+/* ----------------------------------------------------------- REORDER */
+function drawReorder(){
+  const open=S.ex.filter(e=>e.state==='open');
+  const byBiz=[...open].sort((a,b)=>(b.business_score||0)-(a.business_score||0)).slice(0,20);
+  const pool=new Set(byBiz.map(e=>e.id));
+  const byTech=[...open].filter(e=>pool.has(e.id))
+    .sort((a,b)=>(b.baseline_score||0)-(a.baseline_score||0));
+  const posR=new Map(byBiz.map((e,i)=>[e.id,i]));
+  const L=$('#col-l'),R=$('#col-r');L.innerHTML='';R.innerHTML='';
+  const label=e=>((e.explanation||{}).driving_process||shortName(e.repository))
+    +' \u00b7 '+(e.component||'');
+  byTech.forEach((e,i)=>{
+    const d=el('div','rank');d.dataset.id=e.id;
+    d.append(el('span','p',String(i+1)));d.append(el('span','nm',label(e)));L.append(d);});
+  byBiz.forEach((e,i)=>{
+    const moved=posR.get(e.id)-byTech.findIndex(x=>x.id===e.id);
+    const d=el('div','rank'+(Math.abs(moved)>=3?' hi':''));d.dataset.id=e.id;
+    d.append(el('span','p',String(i+1)));d.append(el('span','nm',label(e)));R.append(d);});
+
+  requestAnimationFrame(()=>{
+    const svg=$('#wires'),box=$('.reorder').getBoundingClientRect();
+    svg.setAttribute('width',box.width);svg.setAttribute('height',box.height);
+    svg.style.left=0;svg.style.top=0;svg.innerHTML='';
+    let rose=0,fell=0;
+    byTech.forEach((e,i)=>{
+      const l=L.children[i],r=[...R.children].find(x=>x.dataset.id==e.id);
+      if(!l||!r)return;
+      const lb=l.getBoundingClientRect(),rb=r.getBoundingClientRect();
+      const x1=lb.right-box.left+6,y1=lb.top+lb.height/2-box.top;
+      const x2=rb.left-box.left-6,y2=rb.top+rb.height/2-box.top;
+      const j=posR.get(e.id)-i;
+      if(j<=-3)rose++;else if(j>=3)fell++;
+      const col=j<=-3?'#2C5F3E':(j>=3?'#A8321C':'#CFCBC2');
+      const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+      const mid=(x1+x2)/2;
+      path.setAttribute('d',`M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}`);
+      path.setAttribute('fill','none');path.setAttribute('stroke',col);
+      path.setAttribute('stroke-width',Math.abs(j)>=3?2:1.1);
+      path.setAttribute('opacity',Math.abs(j)>=3?0.95:0.35);
+      svg.append(path);
+    });
+    cells('#reorder-stats',[
+      ['Findings compared',String(byTech.length)],
+      ['Rose three or more places',String(rose),'good'],
+      ['Fell three or more places',String(fell),'risk'],
+      ['Unchanged',String(byTech.length-rose-fell)],
+    ]);
+  });
+}
+
+/* --------------------------------------------------------------- SIM */
+let baseOrder=[];
+function runSim(){
+  const w1=+$('#w1').value/100,w2=+$('#w2').value/100,w3=+$('#w3').value/100,
+        up=+$('#w4').value/100;
+  $('#w1v').textContent=w1.toFixed(2);$('#w2v').textContent=w2.toFixed(2);
+  $('#w3v').textContent=w3.toFixed(2);$('#w4v').textContent=($('#w4').value)+'%';
+  const total=w1+w2+w3;
+  const sum=$('#sim-sum');
+  if(Math.abs(total-1)>0.001){sum.className='sum bad';
+    sum.textContent=`Weights total ${total.toFixed(2)}. Scores stay comparable only when they sum to 1.00.`;}
+  else{sum.className='sum';sum.textContent='Weights total 1.00. Scores are comparable with the published model.';}
+
+  const open=S.ex.filter(e=>e.state==='open');
+  const scored=open.map(e=>({e,s:scoreWith(e,w1,w2,w3,up)}))
+    .sort((a,b)=>b.s-a.s).slice(0,15);
+  const b=$('#sim-body');b.innerHTML='';
+  scored.forEach((x,i)=>{
+    const was=baseOrder.indexOf(x.e.id);
+    const moved=was<0?null:was-i;
+    const tr=el('tr');
+    tr.append(el('td','n',String(i+1)));
+    tr.append(el('td','nm',shortName(x.e.repository)));
+    tr.append(el('td','',(x.e.explanation||{}).driving_process||'Not mapped'));
+    tr.append(el('td','mo',x.e.component||''));
+    tr.append(el('td','n',x.s.toFixed(2)));
+    const m=el('td','n');
+    if(moved===null||moved===0)m.textContent='\u2013';
+    else{m.textContent=(moved>0?'\u2191':'\u2193')+Math.abs(moved);
+      m.style.color=moved>0?'var(--moss)':'var(--ember)';}
+    tr.append(m);b.append(tr);
+  });
+}
+['w1','w2','w3','w4'].forEach(i=>$('#'+i).oninput=runSim);
+$('#b-reset').onclick=()=>{$('#w1').value=50;$('#w2').value=30;$('#w3').value=20;
+  $('#w4').value=10;runSim();toast('Back to the published weights.');};
+
+/* ------------------------------------------------------------- BLAST */
+function renderBlast(rows){
+  const box=$('#blast-cards');box.innerHTML='';
+  const multi=rows.filter(r=>r.repository_count>1).slice(0,12);
+  if(!multi.length){box.innerHTML='<div class="panel"><div class="blank">'
+    +'<b>No shared exposure yet.</b>Once findings span several repositories they appear here.</div></div>';return;}
+  const grid=el('div','grid');grid.style.cssText=
+    'grid-template-columns:repeat(auto-fit,minmax(280px,1fr))';
+  multi.forEach(r=>{
+    const c=el('div','cell');
+    c.append(el('div','k',r.identifier+'  \u00b7  '+(r.component||'')));
+    c.append(el('div','v',r.repository_count+' repositories'));
+    const t=el('div','tags');t.style.cssText='margin-top:10px;display:flex;gap:6px;flex-wrap:wrap';
+    (r.business_processes||[]).slice(0,4).forEach(p=>t.append(el('span','chip c-reg',p)));
+    if(!(r.business_processes||[]).length)t.append(el('span','chip c-med','no process mapped'));
+    c.append(t);grid.append(c);
+  });
+  box.append(grid);
+}
+
+/* ------------------------------------------------------------ others */
+function renderQuick(rows){
+  const b=$('#qw-body');b.innerHTML='';
+  if(!rows.length){const tr=el('tr'),td=el('td');td.colSpan=7;td.className='blank';
+    td.innerHTML='<b>No quick wins yet.</b>Link Dependabot alerts so upgrade paths are known.';
+    tr.append(td);b.append(tr);return;}
+  rows.forEach(q=>{const tr=el('tr');
+    tr.append(el('td','nm',shortName(q.repository)));
+    tr.append(el('td','',q.business_process||'Not mapped'));
+    tr.append(el('td','mo',q.upgrade||''));
+    tr.append(el('td','',q.fix_effort_label||''));
+    tr.append(el('td','n',(q.business_score||0).toFixed(2)));
+    tr.append(el('td','n',(q.quick_win_score||0).toFixed(2)));
+    const a=el('td');if(q.dependabot_alert_url){const l=document.createElement('a');
+      l.href=q.dependabot_alert_url;l.target='_blank';l.rel='noopener';l.textContent='Fix';a.append(l);}
+    tr.append(a);b.append(tr);});
+}
+function renderProcs(list){
+  const b=$('#bp-body');b.innerHTML='';
+  if(!list.length){const tr=el('tr'),td=el('td');td.colSpan=8;td.className='blank';
+    td.innerHTML='<b>No business context yet.</b>Add a process above to derive criticality instead of guessing it.';
+    tr.append(td);b.append(tr);return;}
+  list.forEach(p=>{const tr=el('tr');
+    tr.append(el('td','nm',p.name));
+    tr.append(el('td','',(p.repositories||[]).map(shortName).join(', ')||'\u2014'));
+    tr.append(el('td','',p.revenue_dependency));
+    tr.append(el('td','',p.customer_facing?'Yes':'No'));
+    tr.append(el('td','',p.availability_requirement));
+    tr.append(el('td','',p.data_sensitivity));
+    tr.append(el('td','',(p.regulatory_scope||[]).join(', ')||'\u2014'));
+    tr.append(el('td','mo',p.source_document||'\u2014'));b.append(tr);});
+}
+function renderRepos(list){
+  const b=$('#repo-body');b.innerHTML='';
+  const sel=$('#p-repo');sel.innerHTML='<option value="">Choose a repository\u2026</option>';
+  list.forEach(r=>{const tr=el('tr');
+    tr.append(el('td','nm',r.name));
+    const bp=el('td');
+    if((r.business_processes||[]).length)bp.textContent=r.business_processes.join(', ');
+    else bp.innerHTML='<span class="chip c-high">unknown risk \u2014 not mapped</span>';
+    tr.append(bp);
+    tr.append(el('td','',(r.regulatory_scope||[]).join(', ')||'\u2014'));
+    tr.append(el('td','n',N(r.open_findings)));
+    tr.append(el('td','mo',r.last_ingested_at?r.last_ingested_at.slice(0,16).replace('T',' '):'never'));
+    b.append(tr);
+    const o=document.createElement('option');o.value=r.id;o.textContent=r.full_name;sel.append(o);});
+}
+function renderImpact(im){
+  const o=im.operations,z=im.business;
+  cells('#im-ops',[['Open',N(o.open),'risk'],['Fixed',N(o.resolved),'good'],
+    ['Fix rate',(o.fix_rate*100).toFixed(2)+'%'],
+    ['Mean time to fix',o.mttr_hours==null?'not yet measurable':o.mttr_hours+' h','',
+     o.mttr_sample_size?`over ${o.mttr_sample_size} fixed`:'']]);
+  cells('#im-biz',[['Business risk open',N(z.business_risk_open),'risk'],
+    ['Risk removed',N(z.business_risk_eliminated),'good'],
+    ['Reduced',z.risk_reduction_pct+'%'],
+    ['Processes protected',N(z.processes_protected),'good'],
+    ['Processes exposed',N(z.processes_at_risk),'risk'],
+    ['Regulated exposed',N(z.repositories_in_regulatory_scope_with_open_findings),'risk']]);
+  $('#at-risk').innerHTML=(z.at_risk_process_names||[]).length
+    ?z.at_risk_process_names.map(n=>`<span class="chip c-high" style="margin:0 6px 6px 0">${n}</span>`).join('')
+    :'<b>Every mapped process is clear.</b>No open finding affects a business process.';
+}
+function renderQual(list){
+  const b=$('#qual-body');b.innerHTML='';
+  list.forEach(q=>{const tr=el('tr');
+    tr.append(el('td','nm',shortName(q.repository)));
+    tr.append(el('td','mo',q.source||'\u2014'));
+    tr.append(el('td','n',q.score==null?'\u2014':(q.score*100).toFixed(0)+'%'));
+    const g=el('td');g.innerHTML=q.passed?'<span class="chip c-ok">passed</span>'
+      :'<span class="chip c-crit">below threshold</span>';tr.append(g);
+    tr.append(el('td','',q.has_dependency_chains?'Available':'Flat inventory'));b.append(tr);});
+}
+
+$('#b-add').onclick=async()=>{
+  const name=$('#p-name').value.trim();
+  if(!name){toast('Give the process a name first.');return;}
+  try{
+    const made=await api('/api/business-processes',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name,owner:$('#p-owner').value.trim()||null,
+        revenue_dependency:$('#p-rev').value,customer_facing:$('#p-cust').value==='true',
+        availability_requirement:$('#p-avail').value,data_sensitivity:$('#p-data').value,
+        regulatory_scope:$('#p-reg').value.trim()||null,
+        source_document:$('#p-doc').value.trim()||null,
+        source_reference:$('#p-ref').value.trim()||null})});
+    const rid=$('#p-repo').value;
+    if(rid){const k=await api('/api/business-processes/link',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({process_id:made.id,repository_id:Number(rid),role:'implements'})});
+      toast(`Saved ${name} and rescored ${N(k.rescored_findings)} findings.`);}
+    else toast(`Saved ${name}. Map it to a repository to rescore.`);
+    ['p-name','p-owner','p-reg','p-doc','p-ref'].forEach(i=>$('#'+i).value='');
+    await loadAll();
+  }catch(e){toast('Could not save: '+e.message,7000);}
+};
+
+['f-state','f-tier','f-dd'].forEach(i=>$('#'+i).onchange=loadQueue);
+$('#f-text').oninput=renderQueue;
+
+async function loadQueue(){
+  S.ex=await api(`/api/exposures?state=${$('#f-state').value}&limit=500&dedupe=${$('#f-dd').checked}`);
+  baseOrder=S.ex.filter(e=>e.state==='open')
+    .sort((a,b)=>(b.business_score||0)-(a.business_score||0)).map(e=>e.id);
+  renderQueue();runSim();
+}
+
+async function loadAll(){
+  try{
+    const h=await api('/api/health');
+    $('#org').textContent=h.org||'not configured';
+    $('#n-bp').textContent=h.business_processes;$('#n-repo').textContent=h.repositories;
+    $('#n-queue').textContent=h.exposures;
+    $('#live').classList.remove('off');$('#livetxt').textContent='Connected';
+    const [f,im,repos,procs,qual,blast]=await Promise.all([
+      api('/api/triage-funnel'),api('/api/impact'),api('/api/repositories'),
+      api('/api/business-processes'),api('/api/sbom/quality'),api('/api/blast-radius')]);
+    await loadQueue();
+    S.quick=await api('/api/quick-wins?limit=25');
+    $('#n-quick').textContent=S.quick.length;
+    $('#n-today').textContent=im.operations.open_by_tier.CRITICAL||0;
+    renderToday(f,im);renderQuick(S.quick);renderProcs(procs);renderRepos(repos);
+    renderImpact(im);renderQual(qual);renderBlast(blast);
+  }catch(e){
+    $('#live').classList.add('off');$('#livetxt').textContent='Not connected';
+    toast('Cannot reach the analyzer at '+API+'. Start it with: uvicorn sbom_c2.api:app',9000);
+  }
+}
+window.addEventListener('resize',()=>{if($('#v-reorder').classList.contains('on'))drawReorder();});
+loadAll();
+</script>
+</body>
+</html>
