@@ -390,8 +390,23 @@ def triage_funnel(session: Session = Depends(get_session)):
          "note": "the queue a team actually works through today"},
     ]
 
+    # The direct/transitive split is the headline empirical finding of the
+    # first-year project: a tool reading only declared manifests sees the
+    # direct half and misses the rest. Reported here so the figure quoted in
+    # the report is checkable at runtime rather than only in a chart.
+    transitive = [e for e in all_findings if not e.direct]
+    direct = [e for e in all_findings if e.direct]
+
     return {
         "stages": stages,
+        "dependency_origin": {
+            "direct": len(direct),
+            "transitive": len(transitive),
+            "transitive_pct": pct(len(transitive), len(all_findings)),
+            "note": ("Transitive components arrive underneath a declared "
+                     "dependency and never appear in a manifest. Manifest "
+                     "inspection alone finds only the direct share."),
+        },
         "headline": ("%d components reduced to %d findings, %d distinct, "
                      "%d business-critical"
                      % (components, len(all_findings), len(unique), len(critical))),

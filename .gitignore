@@ -9,3 +9,5 @@ ground_truth*.csv
 *.db
 *.db.backup
 .env
+correlate_patch.py
+transitive_patch.py

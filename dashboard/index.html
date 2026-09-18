@@ -611,6 +611,18 @@ tr.picked td{background:#F3F7FF}
   </div>
 
   <div class="zd-sec">
+    <h3>Where these findings come from <span class="sub" id="fd-sub"></span></h3>
+    <p class="hint" style="padding:0 16px 8px;margin:0">Each feed is listed
+       with what it publishes and what it cannot do. The limits are stated
+       here rather than left in a README, so the claim being made about each
+       source is inspectable.</p>
+    <div class="p">
+      <table><thead><tr><th>Feed</th><th>Publishes</th>
+        <th>Evidence available</th><th>Known limits</th></tr></thead>
+        <tbody id="fd-body"></tbody></table></div>
+  </div>
+
+  <div class="zd-sec">
     <h3>Every match, and how confident we are</h3>
     <div class="p">
       <table><thead><tr><th>Repository</th><th>Package</th><th>Version</th>
@@ -853,16 +865,42 @@ function renderPlan(){
 // ---- zero-day -------------------------------------------------------------
 
 const PIPE=[
-  {k:'sealed', t:'Still secret',
-   d:'Proven to exist. The affected software is not named yet so the maintainer can fix it first.'},
+  {k:'sealed', t:'Not named yet',
+   d:'Proven to exist. The software is withheld so the maintainer can fix it first.'},
   {k:'revealed', t:'Named, no fix',
-   d:'We now know the software. No CVE number and no patch. Nothing else in your toolchain sees this.',
+   d:'We know the software. No patch, and no CVE number. Nothing else in your stack shows these.',
    live:true},
-  {k:'identified', t:'CVE issued',
-   d:'A number exists. This is the first moment a normal scanner reacts.'},
-  {k:'patched', t:'Fixed upstream',
-   d:'A safe version has been released. Now it is just an upgrade.', done:true},
+  {k:'identified', t:'Has a CVE',
+   d:'A number exists. This is where a normal scanner starts.'},
+  {k:'patched', t:'Already fixed',
+   d:'A safe version is out. Now it is just an upgrade.', done:true},
 ];
+
+async function loadFeeds(){
+  let d;
+  try{ d=await api('/api/zeroday/sources'); }
+  catch(_){ return; }
+  const on=new Set(d.enabled||[]);
+  const b=$('#fd-body'); if(!b) return; b.innerHTML='';
+  const rows=Object.entries(d.sources||{});
+  $('#fd-sub').textContent=on.size+' of '+rows.length+' enabled in this run';
+  rows.forEach(([key,s])=>{
+    const tr=el('tr');
+    const nm=el('td','nm');
+    nm.textContent=s.name||key;
+    if(!on.has(key)){
+      const chip=el('span','chip','not in this run');
+      chip.style.cssText='margin-left:8px;font-size:11px';
+      nm.append(chip);
+    }
+    tr.append(nm);
+    tr.append(el('td','',s.publishes||'\u2014'));
+    tr.append(el('td','',s.evidence||'\u2014'));
+    tr.append(el('td','',s.limits||'\u2014'));
+    if(!on.has(key)) tr.style.opacity='0.55';
+    b.append(tr);
+  });
+}
 
 async function loadRemediation(){
   let d,ex,wl,m;
@@ -896,9 +934,10 @@ async function loadRemediation(){
 
   const s=d.summary||{},u=s.by_urgency||{};
   tiles('#rm-tiles',[
-    ['Affecting your code',String(s.total||0),'','confirmed, no CVE published'],
-    ['Need action now',String(s.needs_attention||0),(s.needs_attention?'bad':''),
-     'on business-critical systems'],
+    ['Found in your code',String(s.total||0),'',
+     'matched to a repository and version'],
+    ['On business-critical systems',String(s.needs_attention||0),
+     (s.needs_attention?'bad':''),'ranked above the rest of the queue'],
     ['Cannot be patched',String(s.unpatchable||0),(s.unpatchable?'bad':''),
      'no safe version exists yet'],
     ['Do today',String(u.immediate||0),(u.immediate?'bad':''),
@@ -1014,7 +1053,7 @@ function toggleBell(){
 
 function show(v){
   if(v==='work')loadWorklist();
-  if(v==='remed')loadRemediation();
+  if(v==='remed'){loadRemediation();loadFeeds();}
   document.querySelectorAll('.view').forEach(s=>s.classList.remove('on'));
   $('#v-'+v).classList.add('on');
   document.querySelectorAll('.menu button').forEach(b=>
@@ -1145,6 +1184,14 @@ function renderHome(f,im){
     ['Time to fix',im.operations.mttr_hours==null?'\u2014':im.operations.mttr_hours+' h','',
       im.operations.mttr_sample_size?`over ${im.operations.mttr_sample_size} fixed`:'none yet',
       'mttr',()=>show('impact'),'Risk reduction \u2192'],
+    // The direct/transitive split is the headline empirical finding: a tool
+    // reading only manifests sees the direct share and misses the rest.
+    ['Inherited, not chosen',
+      f.dependency_origin?(f.dependency_origin.transitive_pct+'%'):'\u2014','red',
+      f.dependency_origin
+        ? `${N(f.dependency_origin.transitive)} of ${N(f.dependency_origin.direct+f.dependency_origin.transitive)} arrived underneath a declared dependency`
+        : '',
+      'transitive',()=>gotoFindings('open',''),'See findings \u2192'],
   ]);
   const st=S.status||{};
   const warn=[];
