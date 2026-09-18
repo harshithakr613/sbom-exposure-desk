@@ -164,6 +164,39 @@ def sync_one_repository(full_name: str, session: Session = Depends(get_session))
             "scored": scored}
 
 
+@app.post("/api/correlate/repository")
+def correlate_one_repository(full_name: str,
+                             session: Session = Depends(get_session)):
+    """
+    Correlate a single repository against vulnerability data, without
+    re-ingesting its SBOM.
+
+    A repository created by direct SBOM upload has no GitHub source, so
+    `/api/sync/repository` would return zero components for it. This runs the
+    same correlation and scoring against components already stored, and is
+    scoped to one repository rather than the whole portfolio.
+    """
+    repository = (session.query(Repository)
+                  .filter_by(full_name=full_name).one_or_none())
+    if repository is None:
+        raise HTTPException(404, "repository not known")
+
+    components = [{"name": c.name, "ecosystem": c.ecosystem,
+                   "version": c.version}
+                  for c in session.query(Component).filter_by(
+                      repository_id=repository.id)]
+    if not components:
+        return {"repository": full_name, "components": 0,
+                "note": "no components stored for this repository"}
+
+    advisories = pipeline.refresh_vulnerability_data(session, components)
+    exposures = pipeline.correlate_repository(session, repository, advisories)
+    scored = pipeline.score_repository(session, repository)
+    return {"repository": full_name, "components": len(components),
+            "advisories": len(advisories), "exposures": exposures,
+            "scored": scored}
+
+
 # ---------------------------------------------------------------------------
 # Repositories and findings
 # ---------------------------------------------------------------------------

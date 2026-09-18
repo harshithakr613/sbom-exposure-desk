@@ -364,6 +364,7 @@ tr.picked td{background:#F3F7FF}
     <button data-v="ctx">Business context <span class="n" id="n-bp"></span></button>
     <button data-v="impact">Risk reduction</button>
     <button data-v="work">Fix worklist <span class="n" id="n-work"></span></button>
+    <button data-v="lev">Leverage <span class="n" id="n-lev"></span></button>
   </div>
   <div class="foot"><span class="live" id="live"></span><span id="livetxt">checking…</span></div>
 </aside>
@@ -538,6 +539,35 @@ tr.picked td{background:#F3F7FF}
       <span class="sub" id="ar-sub"></span></h3>
     <div class="bars" id="at-risk"></div></div>
   <p><button class="b" id="b-snap" style="background:var(--card);color:var(--ink);border-color:var(--line)">Save snapshot</button></p>
+</div></section>
+
+<!-- ============================================================== LEVERAGE -->
+<section class="view" id="v-lev"><div class="pad">
+  <div class="hd"><h2>Leverage</h2>
+    <p>Two questions the ranked queue does not answer: which single fix
+       protects the most, and what is worth the next twenty minutes.</p></div>
+
+  <div class="p"><h3>One advisory, many repositories
+      <span class="sub" id="br-sub"></span></h3>
+    <p class="hint" style="padding:0 16px 8px;margin:0">Grouped by advisory
+       rather than by finding. The same package upgrade can clear several
+       repositories and protect more than one business process at once.</p>
+    <table><thead><tr><th>Advisory</th><th>Component</th>
+      <th class="n">Repositories</th><th>Business processes</th>
+      <th class="n">Highest score</th></tr></thead>
+      <tbody id="br-body"></tbody></table></div>
+
+  <div class="p"><h3>Worth the next twenty minutes
+      <span class="sub" id="qw-sub"></span></h3>
+    <p class="hint" style="padding:0 16px 8px;margin:0">Ranked by effort
+       against business value. Effort never changes the risk score itself —
+       discounting a critical finding for being awkward to fix would be
+       exactly wrong. It breaks ties and answers a different question.
+       Findings with no available patch are excluded, because they need
+       mitigation rather than an upgrade.</p>
+    <table><thead><tr><th>Repository</th><th>Component</th><th>Upgrade</th>
+      <th>Effort</th><th class="n">Business score</th></tr></thead>
+      <tbody id="qw-body"></tbody></table></div>
 </div></section>
 
 <!-- ========================================================== FIX WORKLIST -->
@@ -1344,9 +1374,25 @@ $('#b-upsbom').onclick=async e=>{
       +encodeURIComponent(label),{method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify(body)});
-    runShow(r.note||(`Ingested ${f.name}: ${N(r.components||0)} components, `
-      +`${N(r.exposures||0)} findings.`),'ok');
-    setTimeout(runHide,8000);
+    // upload stores components; correlation runs separately, so trigger it
+    // here and report both numbers together
+    const got=r.components_stored??r.components_received??0;
+    runShow(`Ingested ${f.name}: ${N(got)} components stored `
+      +`(${r.format||'SBOM'}). Correlating\u2026`);
+    let found=null;
+    try{
+      // correlate this repository only; a full portfolio sync re-queries
+      // every component and takes minutes
+      const c=await api('/api/correlate/repository?full_name='
+        +encodeURIComponent(label),{method:'POST'});
+      found=c.exposures??null;
+    }catch(_){ /* fall back to a manual sync if this route is unavailable */ }
+    runShow(found===null
+      ? `Ingested ${f.name}: ${N(got)} components stored. Run a sync to `
+        +`correlate them.`
+      : `Ingested ${f.name}: ${N(got)} components, ${N(found)} findings `
+        +`across the portfolio.`,'ok');
+    setTimeout(runHide,10000);
     $('#sbom-file').value='';$('#sbom-name').value='';
     await loadAll();
   }catch(err){runShow('Could not ingest that SBOM \u2014 '+err.message,'bad');}
@@ -1401,8 +1447,81 @@ function renderRepos(list){
     const s=document.createElement('a');s.className='gh';
     s.href='https://github.com/'+r.full_name+'/security/dependabot';
     s.target='_blank';s.rel='noopener';s.textContent='Security alerts';
-    act.append(s);tr.append(act);b.append(tr);
+    act.append(s);
+    // Remove: discards the repository and its findings. Useful for SBOMs
+    // uploaded under a mistaken label, which would otherwise persist as a
+    // separate repository.
+    const del=el('button','b','Remove');
+    del.style.cssText='background:var(--card);color:var(--bad);border:0;'
+      +'padding:2px 0 0 10px;font-size:12.5px;cursor:pointer';
+    del.onclick=async()=>{
+      if(!confirm('Remove '+r.full_name+' and discard its '
+        +N(r.open_findings)+' findings?'))return;
+      del.disabled=true;del.textContent='Removing\u2026';
+      try{
+        await api('/api/repositories/'+r.id,{method:'DELETE'});
+        toast(r.full_name+' removed.');
+        await loadAll();
+      }catch(err){
+        toast('Could not remove it \u2014 '+err.message);
+        del.disabled=false;del.textContent='Remove';
+      }
+    };
+    act.append(del);
+    tr.append(act);b.append(tr);
     const o=document.createElement('option');o.value=r.id;o.textContent=r.full_name;sel.append(o);
+  });
+}
+
+/* ------------------------------------------------------------- LEVERAGE */
+function renderLeverage(br, qw){
+  // blast radius: advisories that appear in more than one repository, so a
+  // single upgrade clears several at once
+  const shared=(br||[]).filter(r=>r.repository_count>1);
+  $('#br-sub').textContent = shared.length
+    ? shared.length+' advisories affect more than one repository'
+    : 'no advisory currently spans more than one repository';
+  const b=$('#br-body');b.innerHTML='';
+  const rows = shared.length ? shared.slice(0,12) : (br||[]).slice(0,12);
+  if(!rows.length){
+    const tr=el('tr'),td=el('td');td.colSpan=5;td.className='blank';
+    td.innerHTML='<b>Nothing to show yet.</b>Run a scan first.';
+    tr.append(td);b.append(tr);
+  } else rows.forEach(r=>{
+    const tr=el('tr');
+    tr.append(el('td','mo',r.identifier||'\u2014'));
+    tr.append(el('td','mo',r.component||'\u2014'));
+    const rc=el('td','n');
+    rc.textContent=N(r.repository_count);
+    if(r.repository_count>1){
+      rc.title='One upgrade clears '+r.repository_count+' repositories';
+      rc.style.fontWeight='600';
+    }
+    tr.append(rc);
+    tr.append(el('td','',(r.business_processes||[]).join(', ')||'Not mapped'));
+    tr.append(el('td','n',(r.max_business_score||0).toFixed(2)));
+    b.append(tr);
+  });
+
+  // quick wins: high business value, low fix effort
+  $('#qw-sub').textContent=(qw||[]).length+' candidates';
+  const q=$('#qw-body');q.innerHTML='';
+  if(!(qw||[]).length){
+    const tr=el('tr'),td=el('td');td.colSpan=5;td.className='blank';
+    td.innerHTML='<b>Nothing cheap to fix right now.</b>'
+      +'Findings with no available patch are excluded here.';
+    tr.append(td);q.append(tr);
+  } else qw.slice(0,12).forEach(w=>{
+    const tr=el('tr');
+    tr.append(el('td','nm',shortName(w.repository||'')));
+    tr.append(el('td','mo',w.component||''));
+    tr.append(el('td','mo',w.upgrade||'\u2014'));
+    const ef=el('td');
+    ef.textContent=w.fix_effort_label||w.fix_effort_band||'\u2014';
+    if(w.fix_effort_note) ef.title=w.fix_effort_note;
+    tr.append(ef);
+    tr.append(el('td','n',(w.business_score||0).toFixed(2)));
+    q.append(tr);
   });
 }
 
@@ -1800,7 +1919,10 @@ on('#lk-q','keydown',e=>{if(e.key==='Enter')runLookup();});
 on('#f-text','input',renderFindings);
 
 async function loadQueue(){
-  S.ex=await api(`/api/exposures?state=${$('#f-state').value}&limit=500&dedupe=${$('#f-dd').checked}`);
+  // 500 was too low once uploaded SBOMs were added: findings on an
+  // unmapped repository score low and fell outside the window, so a
+  // search for them returned almost nothing.
+  S.ex=await api(`/api/exposures?state=${$('#f-state').value}&limit=3000&dedupe=${$('#f-dd').checked}`);
   ranks();renderFindings();
 }
 async function loadAll(){
@@ -1821,6 +1943,15 @@ async function loadAll(){
       api('/api/impact'),api('/api/repositories'),api('/api/business-processes')]);
     await loadQueue();
     renderHome(f,im);renderRepos(repos);renderProcs(procs);renderImpact(im);
+    // Leverage loads separately: it is a second view over the same findings,
+    // and a failure here must not stop the main queue rendering.
+    Promise.all([api('/api/blast-radius'),api('/api/quick-wins?limit=25')])
+      .then(([br,qw])=>{
+        renderLeverage(br,qw);
+        const shared=(br||[]).filter(r=>r.repository_count>1).length;
+        $('#n-lev').textContent=shared||'';
+      })
+      .catch(()=>{ $('#n-lev').textContent=''; });
     // The zero-day alert bar is intentionally the last thing loaded: a failure
     // here must not stop the rest of the dashboard rendering.
     loadZeroDayBar();
