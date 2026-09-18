@@ -20,7 +20,7 @@ import logging
 import os
 
 from fastapi import Body, Depends, FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -28,13 +28,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from . import (bia, config, evaluate, feeds, impact, matching,
-               pipeline, quality, remediation, reports, sbom_formats)
+               pipeline, quality, remediation, reports, sbom_formats,
+               worklist, zeroday_feeds, zeroday_match, zeroday_remediation,
+               zeroday_score)
 from .scheduler import scheduler
 from .db import get_session, init_db
 from .github_client import GitHubClient
 from .models import (
     BusinessProcess, Component, Exposure, ProcessRepositoryLink,
-    RemediationEvent, Repository,
+    RemediationEvent, Repository, ZeroDayExposure, ZeroDayFinding,
 )
 
 # A full sync takes minutes and is otherwise silent; INFO logging shows which
@@ -96,6 +98,17 @@ class LinkIn(BaseModel):
 # ---------------------------------------------------------------------------
 # Health and ingestion
 # ---------------------------------------------------------------------------
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    """
+    Answer the browser's automatic icon request.
+
+    Browsers request this unprompted; without a route it logs a 404 on every
+    page load, which looks like a fault during a demonstration and is not one.
+    """
+    return Response(status_code=204)
+
 
 @app.get("/api/health")
 def health(session: Session = Depends(get_session)):
@@ -1671,3 +1684,569 @@ if os.path.isdir(DASHBOARD_DIR):
     @app.get("/")
     def dashboard():
         return FileResponse(os.path.join(DASHBOARD_DIR, "index.html"))
+
+
+# ---------------------------------------------------------------------------
+# Zero-day / pre-disclosure layer  (Capstone 1, Objectives 2-5)
+# ---------------------------------------------------------------------------
+
+ZERO_DAY_SOURCE_INFO = {
+    "cvd": {
+        "name": "Anthropic CVD ledger (findings discovered by Claude "
+                "Mythos Preview and other Claude models)",
+        "endpoint": config.CVD_LEDGER_URL,
+        "auth": "none",
+        "identifier": "ANT-YYYY-XXXXXXXX",
+        "publishes": "hash commitment, then project and bug class, then "
+                     "CVE/GHSA, then patch",
+        "evidence": "project name only at reveal",
+        "limits": "one high-quality stream, not a complete zero-day feed; "
+                  "most findings never receive any identifier. Mythos is the "
+                  "discovery engine behind these findings, not a queryable "
+                  "API -- this ledger is the public interface to them. The "
+                  "disclosed set is also a subset of what the models found, "
+                  "since human triage is the rate-limiting step",
+    },
+    "ossfuzz": {
+        "name": "OSS-Fuzz (published as OSV records)",
+        "endpoint": "%s/query  |  %s/OSS-Fuzz/all.zip" % (config.OSV_API,
+                                                          config.OSV_BUCKET),
+        "auth": "none",
+        "identifier": "OSV-YYYY-NNNN",
+        "publishes": "crash type, crash state, pkg:generic purl, GIT "
+                     "introduced and fixed commit ranges",
+        "evidence": "upstream repository plus commit range",
+        "limits": "public 90 days after report or 30 after the fix; commit "
+                  "matching needs an SBOM that records a commit",
+    },
+    "ghsa": {
+        "name": "GitHub Advisory Database",
+        "endpoint": "%s/advisories" % config.GITHUB_API,
+        "auth": "token recommended (works anonymously, heavily rate limited)",
+        "identifier": "GHSA-xxxx-xxxx-xxxx",
+        "publishes": "ecosystem, affected and fixed version ranges, aliases",
+        "evidence": "PURL plus version range",
+        "limits": "a GHSA is usually issued before NVD indexes the CVE, so "
+                  "this is pre-NVD rather than pre-patch. GitHub Security Lab "
+                  "findings arrive here: the Security Lab site publishes only "
+                  "after a patch exists and offers no JSON API",
+    },
+    "debian": {
+        "name": "Debian Security Tracker (TEMP entries)",
+        "endpoint": config.DEBIAN_TRACKER_JSON,
+        "auth": "none",
+        "identifier": "TEMP-000000-NNNNNN",
+        "publishes": "package, unfixed status and urgency for issues with no CVE",
+        "evidence": "package name, sometimes a fixed version",
+        "limits": "TEMP names are explicitly unstable; joined on package name, "
+                  "never persisted as a key",
+    },
+    "euvd": {
+        "name": "ENISA EU Vulnerability Database",
+        "endpoint": "%s/search" % config.EUVD_API,
+        "auth": "none",
+        "identifier": "EUVD-YYYY-NNNNN",
+        "publishes": "vendor and product, CVSS, EPSS, exploited flag",
+        "evidence": "vendor and product strings",
+        "limits": "beta and slow; list endpoints cap at 8 records",
+    },
+    "kev": {
+        "name": "CISA Known Exploited Vulnerabilities",
+        "endpoint": config.KEV_FEED_URL,
+        "auth": "none",
+        "identifier": "CVE (by definition)",
+        "publishes": "confirmed in-the-wild exploitation, required action, "
+                     "mandated due date, ransomware flag",
+        "evidence": "enrichment only, not a correlation source",
+        "limits": "not a pre-CVE feed; it is the one signal permitted to "
+                  "override business-context ranking",
+    },
+}
+
+
+@app.get("/api/zeroday/sources")
+def zero_day_sources():
+    """
+    The feed inventory, with each source's limits stated alongside it.
+
+    Exposed as an endpoint rather than buried in a README so the claim being
+    made about each feed is inspectable at runtime -- including the two that
+    are easy to overstate: GitHub Security Lab is not polled directly, and KEV
+    is not a pre-CVE source.
+    """
+    return {
+        "enabled": config.ZERODAY_SOURCES,
+        "sources": ZERO_DAY_SOURCE_INFO,
+        "stages": {
+            "T0": "commitment - hash only, project withheld, nothing to correlate",
+            "T1": "revealed - project and bug class, no identifier",
+            "T2": "identified - CVE and/or GHSA assigned",
+            "T3": "patched - fix shipped upstream",
+        },
+        "evidence_tiers": {
+            "T3_PURL": "package plus affected semantic version range",
+            "T2_PRODUCT": "vendor and product strings, fuzzy matched",
+            "T1_COMMIT": "upstream repository plus GIT commit range",
+            "T0_PROJECT": "project name alone, over-inclusive by design",
+        },
+    }
+
+
+@app.post("/api/zeroday/sync")
+def zero_day_sync(sources: str | None = None,
+                  session: Session = Depends(get_session)):
+    """
+    Poll the pre-disclosure feeds, store, correlate and score.
+
+    Deliberately separate from /api/sync: this needs no SBOM re-ingest, only
+    the inventory already stored, so it is cheap enough to run every few
+    minutes. That is what makes alerting within minutes of a reveal possible.
+    """
+    selected = [s.strip() for s in sources.split(",")] if sources else None
+    return pipeline.run_zero_day_pipeline(
+        session, sources=selected, github_token=config.GITHUB_TOKEN)
+
+
+@app.get("/api/zeroday/findings")
+def zero_day_findings(stage: str | None = None, source: str | None = None,
+                      limit: int = 200, session: Session = Depends(get_session)):
+    """Stored pre-disclosure findings, newest reveal first."""
+    query = session.query(ZeroDayFinding)
+    if stage:
+        query = query.filter(ZeroDayFinding.stage == stage)
+    if source:
+        query = query.filter(ZeroDayFinding.source == source)
+
+    rows = (query.order_by(ZeroDayFinding.revealed_at.desc().nullslast(),
+                           ZeroDayFinding.first_seen_at.desc())
+            .limit(min(limit, 1000)).all())
+    return {
+        "count": len(rows),
+        "findings": [_zero_day_finding_row(r) for r in rows],
+    }
+
+
+def _zero_day_finding_row(row):
+    return {
+        "id": row.id,
+        "source": row.source,
+        "source_id": row.source_id,
+        "stage": row.stage,
+        "stage_label": zeroday_feeds.STAGE_LABEL.get(row.stage),
+        "evidence_tier": row.evidence_tier,
+        "project": row.project,
+        "bug_class": row.bug_class,
+        "summary": row.summary,
+        "package": row.package_name,
+        "ecosystem": row.ecosystem,
+        "purl": row.purl,
+        "repo_url": row.repo_url,
+        "severity": row.severity_band,
+        "cve_ids": [c for c in (row.cve_ids or "").split(",") if c],
+        "ghsa_ids": [g for g in (row.ghsa_ids or "").split(",") if g],
+        "patched": bool(row.patched),
+        "exploited": bool(row.exploited),
+        "kev_due_date": row.kev_due_date.isoformat() if row.kev_due_date else None,
+        "revealed_at": row.revealed_at.isoformat() if row.revealed_at else None,
+        "first_seen_at": row.first_seen_at.isoformat() if row.first_seen_at else None,
+        "url": row.url,
+    }
+
+
+@app.get("/api/zeroday/exposures")
+def zero_day_exposures(state: str | None = "open", tier: str | None = None,
+                       verified_only: bool = False, limit: int = 200,
+                       session: Session = Depends(get_session)):
+    """
+    Which repositories are exposed to a pre-disclosure finding, and on what
+    evidence.
+
+    Ordered by the same rule the queue uses: confirmed exploitation first, then
+    score, then verified evidence ahead of unverified.
+    """
+    query = (session.query(ZeroDayExposure, ZeroDayFinding, Repository)
+             .join(ZeroDayFinding, ZeroDayExposure.finding_id == ZeroDayFinding.id)
+             .join(Repository, ZeroDayExposure.repository_id == Repository.id))
+    if state:
+        query = query.filter(ZeroDayExposure.state == state)
+    if tier:
+        query = query.filter(ZeroDayExposure.evidence_tier == tier)
+    if verified_only:
+        query = query.filter(ZeroDayExposure.verified.is_(True))
+
+    rows = []
+    for exposure, finding, repository in query.limit(min(limit, 1000)).all():
+        try:
+            explanation = json.loads(exposure.score_explanation or "{}")
+        except ValueError:
+            explanation = {}
+        rows.append({
+            "id": exposure.id,
+            "repository": repository.full_name,
+            "component": exposure.component_name,
+            "version": exposure.component_version,
+            "ecosystem": exposure.ecosystem,
+            "score": exposure.zero_day_score,
+            "tier": exposure.tier,
+            "evidence_tier": exposure.evidence_tier,
+            "confidence": exposure.match_confidence,
+            "verified": bool(exposure.verified),
+            "degraded": bool(exposure.degraded),
+            "match_reason": exposure.match_reason,
+            "explanation": explanation.get("summary"),
+            "substitutions": explanation.get("substitutions"),
+            "state": exposure.state,
+            "detected_at": exposure.detected_at.isoformat()
+            if exposure.detected_at else None,
+            "finding": _zero_day_finding_row(finding),
+        })
+
+    rows = zeroday_score.rank(
+        [dict(r, exploited=r["finding"]["exploited"],
+              evidence_tier=r["evidence_tier"]) for r in rows])
+    return {"count": len(rows), "exposures": rows}
+
+
+@app.get("/api/zeroday/watchlist")
+def zero_day_watchlist(session: Session = Depends(get_session)):
+    """
+    Findings that cannot be correlated yet.
+
+    Two distinct populations, kept apart because they mean different things:
+
+      sealed        still at commitment stage. The ledger withholds the project
+                    deliberately during the disclosure window, and this system
+                    does not attempt to infer it. Held, counted, not guessed at.
+      unmatched     revealed, but nothing in the inventory matched. Evidence
+                    that the feed covers projects the organisation does not use
+                    -- which is a true negative, not a failure.
+    """
+    sealed = (session.query(ZeroDayFinding)
+              .filter(ZeroDayFinding.stage == zeroday_feeds.STAGE_COMMITMENT)
+              .all())
+    matched_ids = {row[0] for row in
+                   session.query(ZeroDayExposure.finding_id).distinct()}
+    unmatched = [f for f in session.query(ZeroDayFinding)
+                 .filter(ZeroDayFinding.stage != zeroday_feeds.STAGE_COMMITMENT)
+                 .all() if f.id not in matched_ids]
+
+    return {
+        "sealed": {
+            "count": len(sealed),
+            "note": "Commitment stage: project withheld by the disclosure "
+                    "programme. No correlation is attempted.",
+            "findings": [
+                {"source": f.source, "source_id": f.source_id,
+                 "severity": f.severity_band,
+                 "committed_at": f.committed_at.isoformat()
+                 if f.committed_at else None}
+                for f in sealed[:100]
+            ],
+        },
+        "unmatched": {
+            "count": len(unmatched),
+            "note": "Revealed but not present in this inventory.",
+            "findings": [_zero_day_finding_row(f) for f in unmatched[:100]],
+        },
+    }
+
+
+@app.post("/api/zeroday/exposures/{exposure_id}/acknowledge")
+def acknowledge_zero_day(exposure_id: int, owner: str = "unassigned",
+                         session: Session = Depends(get_session)):
+    """
+    Record an owner's confirmation of an unverified finding.
+
+    T0 and T2 matches are over-inclusive by construction, so they produce a
+    review queue rather than an automated action. This is the human step that
+    turns a candidate into a confirmed exposure, and it is recorded so the
+    T0 false-positive rate can be measured afterwards rather than asserted.
+    """
+    exposure = session.query(ZeroDayExposure).get(exposure_id)
+    if exposure is None:
+        raise HTTPException(status_code=404, detail="exposure not found")
+    exposure.acknowledged_by = owner
+    exposure.acknowledged_at = dt.datetime.now(dt.timezone.utc)
+    exposure.verified = True
+    session.commit()
+    return {"id": exposure.id, "acknowledged_by": owner,
+            "acknowledged_at": exposure.acknowledged_at.isoformat()}
+
+
+@app.get("/api/zeroday/metrics")
+def zero_day_metrics(session: Session = Depends(get_session)):
+    """
+    Objective 5 evidence: Pre-CVE Lead Time plus a per-tier breakdown.
+
+    Accuracy is reported per evidence tier and never as a single figure.
+    Averaging a deliberately over-inclusive T0 name match together with a
+    verified PURL match would produce a number that means nothing.
+    """
+    tiers = {}
+    for tier, count in (session.query(
+            ZeroDayExposure.evidence_tier, func.count(ZeroDayExposure.id))
+            .group_by(ZeroDayExposure.evidence_tier).all()):
+        verified = (session.query(func.count(ZeroDayExposure.id))
+                    .filter(ZeroDayExposure.evidence_tier == tier,
+                            ZeroDayExposure.verified.is_(True)).scalar())
+        tiers[tier or "unknown"] = {
+            "exposures": count,
+            "verified": verified,
+            "confirmation_rate": round(verified / count, 3) if count else None,
+        }
+
+    stages = {stage or "unknown": count for stage, count in session.query(
+        ZeroDayFinding.stage, func.count(ZeroDayFinding.id))
+        .group_by(ZeroDayFinding.stage).all()}
+
+    total_findings = session.query(func.count(ZeroDayFinding.id)).scalar() or 0
+    with_identifier = (session.query(func.count(ZeroDayFinding.id))
+                       .filter((ZeroDayFinding.cve_ids.isnot(None)) |
+                               (ZeroDayFinding.ghsa_ids.isnot(None))).scalar() or 0)
+
+    return {
+        "findings_total": total_findings,
+        "findings_by_stage": stages,
+        "with_identifier": with_identifier,
+        "without_identifier": total_findings - with_identifier,
+        "identifier_coverage": round(with_identifier / total_findings, 3)
+        if total_findings else None,
+        "coverage_note": "Findings with no identifier are invisible to every "
+                         "CVE-keyed scanner. This proportion is the blind spot "
+                         "the project measures. Read it as a lower bound on "
+                         "coverage, not a census: the CVD ledger's own "
+                         "CVE/GHSA mapping is known to be incomplete, so some "
+                         "findings counted here as unidentified do have an "
+                         "advisory recorded elsewhere.",
+        "exposures_by_tier": tiers,
+        "exploited_open": (session.query(func.count(ZeroDayExposure.id))
+                           .join(ZeroDayFinding)
+                           .filter(ZeroDayFinding.exploited.is_(True),
+                                   ZeroDayExposure.state == "open").scalar()),
+        "lead_time": pipeline.pre_cve_lead_time(session),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Zero-day remediation and the fix worklist  (Capstone 2, Objectives 3-4)
+# ---------------------------------------------------------------------------
+
+def _process_attrs(session, repository):
+    """Business attributes of every process this repository supports."""
+    links = (session.query(ProcessRepositoryLink)
+             .filter_by(repository_id=repository.id).all())
+    out = []
+    for link in links:
+        p = link.process
+        if p is None:
+            continue
+        out.append({
+            "name": p.name,
+            "owner": p.owner,
+            "revenue_dependency": p.revenue_dependency,
+            "customer_facing": bool(p.customer_facing),
+            "availability_requirement": p.availability_requirement,
+            "data_sensitivity": p.data_sensitivity,
+            "regulatory_scope": p.regulatory_scope or "",
+        })
+    return out
+
+
+def _owner_of(processes):
+    """The accountable owner: the most business-critical process wins."""
+    for key in ("direct", "indirect"):
+        for p in processes:
+            if p.get("revenue_dependency") == key and p.get("owner"):
+                return p["owner"]
+    for p in processes:
+        if p.get("owner"):
+            return p["owner"]
+    return None
+
+
+def _zero_day_plans(session, state="open"):
+    """Every open zero-day exposure with its remediation plan attached."""
+    rows = (session.query(ZeroDayExposure, ZeroDayFinding, Repository)
+            .join(ZeroDayFinding, ZeroDayExposure.finding_id == ZeroDayFinding.id)
+            .join(Repository, ZeroDayExposure.repository_id == Repository.id))
+    if state:
+        rows = rows.filter(ZeroDayExposure.state == state)
+
+    out = []
+    for exposure, finding, repository in rows.all():
+        processes = _process_attrs(session, repository)
+        f = pipeline._finding_to_dict(finding)
+        plan = zeroday_remediation.remediation_plan(
+            f, repository=repository.full_name, processes=processes,
+            owner=_owner_of(processes))
+        out.append((exposure, finding, repository, processes, f, plan))
+    return out
+
+
+@app.get("/api/zeroday/remediation")
+def zero_day_remediation(session: Session = Depends(get_session)):
+    """
+    The remediation ladder for every open zero-day exposure.
+
+    Each finding carries the stage it sits on, what can actually be done there,
+    and what is blocked and why. Stage T1 is the contribution: project known,
+    no identifier, no fixed version, so no existing tool raises anything.
+    """
+    plans = _zero_day_plans(session)
+    rows = []
+    for exposure, finding, repository, processes, f, plan in plans:
+        rows.append({
+            "exposure_id": exposure.id,
+            "repository": repository.full_name,
+            "component": exposure.component_name,
+            "version": exposure.component_version,
+            "source": finding.source,
+            "source_id": finding.source_id,
+            "summary": finding.summary,
+            "severity": finding.severity_band,
+            "url": finding.url,
+            "score": exposure.zero_day_score,
+            "evidence_tier": exposure.evidence_tier,
+            "plan": plan,
+        })
+    order = {u: i for i, u in enumerate(zeroday_remediation.URGENCY_ORDER)}
+    rows.sort(key=lambda r: (order.get(r["plan"]["urgency"], 9),
+                             -(r["score"] or 0)))
+
+    return {
+        "count": len(rows),
+        "ladder": {k: {kk: vv for kk, vv in v.items()}
+                   for k, v in zeroday_remediation.LADDER.items()},
+        "summary": zeroday_remediation.summarise([r["plan"] for r in rows]),
+        "findings": rows,
+    }
+
+
+@app.get("/api/zeroday/alerts")
+def zero_day_alerts(session: Session = Depends(get_session)):
+    """
+    Active alerts for the dashboard notification bar.
+
+    Only findings a person should act on today produce an alert. An alert
+    nobody can act on trains people to dismiss the bar, which costs more than
+    the alert is worth.
+    """
+    alerts = []
+    for exposure, finding, repository, processes, f, plan in _zero_day_plans(session):
+        alert = zeroday_remediation.alert_for(plan, f, exposure_id=exposure.id)
+        if alert:
+            alerts.append(alert)
+    order = {u: i for i, u in enumerate(zeroday_remediation.URGENCY_ORDER)}
+    alerts.sort(key=lambda a: order.get(a["urgency"], 9))
+    return {
+        "count": len(alerts),
+        "immediate": sum(1 for a in alerts if a["urgency"] == "immediate"),
+        "unpatchable": sum(1 for a in alerts if not a["patch_available"]),
+        "alerts": alerts[:25],
+    }
+
+
+@app.post("/api/zeroday/exposures/{exposure_id}/action")
+def record_remediation_action(exposure_id: int, action: str,
+                              owner: str = "unassigned",
+                              note: str | None = None,
+                              session: Session = Depends(get_session)):
+    """
+    Record what was actually done about an unpatchable finding.
+
+    Where no fix exists the response is a decision rather than an upgrade --
+    a control applied, a dependency pinned, a risk accepted. Recording it is
+    what turns the ladder from advice into an auditable remediation trail, and
+    it is what allows an accepted risk to be reviewed later rather than
+    forgotten.
+    """
+    exposure = session.query(ZeroDayExposure).get(exposure_id)
+    if exposure is None:
+        raise HTTPException(status_code=404, detail="exposure not found")
+
+    allowed = {"pinned", "control_applied", "exception_raised",
+               "upgraded", "not_affected", "acknowledged"}
+    if action not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail="action must be one of %s" % ", ".join(sorted(allowed)))
+
+    now = dt.datetime.now(dt.timezone.utc)
+    exposure.acknowledged_by = owner
+    exposure.acknowledged_at = now
+    exposure.verified = True
+    if action in ("upgraded", "not_affected"):
+        exposure.state = "resolved"
+        exposure.resolved_at = now
+
+    session.add(RemediationEvent(
+        exposure_id=exposure.id,
+        event_type="zero_day_%s" % action,
+        from_state="open",
+        to_state=exposure.state,
+        detail=json.dumps({"owner": owner, "note": note,
+                           "component": exposure.component_name})))
+    session.commit()
+    return {"exposure_id": exposure.id, "action": action, "owner": owner,
+            "state": exposure.state, "recorded_at": now.isoformat()}
+
+
+@app.get("/api/worklist")
+def fix_worklist(size: int = 10, session: Session = Depends(get_session)):
+    """
+    What to fix first, and why, in business terms.
+
+    This replaces the NDCG ranking evaluation. A developer choosing what to fix
+    does not ask whether one ordering correlates better with a graded list than
+    another; they ask which of these matters most and why. So the list is
+    ordered by business consequence and every position states its reason in one
+    sentence, with the technical score shown only as supporting detail.
+    """
+    items = []
+
+    # Published CVE findings.
+    for exposure, repository in (
+            session.query(Exposure, Repository)
+            .join(Repository, Exposure.repository_id == Repository.id)
+            .filter(Exposure.state == "open").all()):
+        processes = _process_attrs(session, repository)
+        items.append({
+            "kind": "published",
+            "exposure_id": exposure.id,
+            "repository": repository.full_name,
+            "component": exposure.component_name,
+            "version": exposure.component_version,
+            "identifier": exposure.cve_id or exposure.advisory_id,
+            "score": exposure.business_score,
+            "tier": exposure.tier,
+            "patch_available": bool(exposure.first_patched_version),
+            "upgrade_target": exposure.first_patched_version,
+            "exploited": False,
+            "processes": processes,
+        })
+
+    # Pre-disclosure findings.
+    for exposure, finding, repository, processes, f, plan in _zero_day_plans(session):
+        items.append({
+            "kind": "zero-day",
+            "exposure_id": exposure.id,
+            "repository": repository.full_name,
+            "component": exposure.component_name,
+            "version": exposure.component_version,
+            "identifier": (finding.cve_ids or finding.ghsa_ids
+                           or finding.source_id),
+            "score": exposure.zero_day_score,
+            "tier": exposure.tier,
+            "patch_available": plan["patch_available"],
+            "upgrade_target": plan["upgrade_target"],
+            "exploited": bool(finding.exploited),
+            "stage_label": plan["stage_label"],
+            "processes": processes,
+        })
+
+    rows, summary = worklist.build(items, size=size)
+    for row in rows:
+        row["process_names"] = [p["name"] for p in row.get("processes", [])]
+        row["owner"] = _owner_of(row.get("processes", []))
+        row.pop("processes", None)
+    return {"summary": summary, "worklist": rows}

@@ -1,0 +1,136 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "serialNumber": "urn:uuid:d0e36fe6-0406-472e-8da6-b5d6be055f77",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-09-17T12:58:53.170584Z",
+    "tools": [
+      {
+        "vendor": "Northwind Systems",
+        "name": "build-pipeline",
+        "version": "3.2.0"
+      }
+    ],
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:generic/northwind-payment-gateway@5.4.0",
+      "name": "northwind-payment-gateway",
+      "version": "5.4.0",
+      "description": "Third-party payment gateway supplied under licence. SBOM provided by the vendor.",
+      "supplier": {
+        "name": "Northwind Systems Ltd"
+      }
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/lodash@4.17.15",
+      "name": "lodash",
+      "version": "4.17.15",
+      "purl": "pkg:npm/lodash@4.17.15",
+      "description": "Prototype pollution in zipObjectDeep",
+      "scope": "required"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/minimist@1.2.0",
+      "name": "minimist",
+      "version": "1.2.0",
+      "purl": "pkg:npm/minimist@1.2.0",
+      "description": "Prototype pollution",
+      "scope": "required"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/axios@0.21.0",
+      "name": "axios",
+      "version": "0.21.0",
+      "purl": "pkg:npm/axios@0.21.0",
+      "description": "Server-side request forgery",
+      "scope": "required"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/express@4.17.1",
+      "name": "express",
+      "version": "4.17.1",
+      "purl": "pkg:npm/express@4.17.1",
+      "description": "",
+      "scope": "required"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/js-yaml@3.13.0",
+      "name": "js-yaml",
+      "version": "3.13.0",
+      "purl": "pkg:npm/js-yaml@3.13.0",
+      "description": "Code execution through load()",
+      "scope": "required"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/node-fetch@2.6.0",
+      "name": "node-fetch",
+      "version": "2.6.0",
+      "purl": "pkg:npm/node-fetch@2.6.0",
+      "description": "Information exposure through redirect",
+      "scope": "required"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/tar@4.4.10",
+      "name": "tar",
+      "version": "4.4.10",
+      "purl": "pkg:npm/tar@4.4.10",
+      "description": "Arbitrary file overwrite through path traversal",
+      "scope": "required"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/ws@5.2.2",
+      "name": "ws",
+      "version": "5.2.2",
+      "purl": "pkg:npm/ws@5.2.2",
+      "description": "Denial of service through long header",
+      "scope": "required"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/moment@2.24.0",
+      "name": "moment",
+      "version": "2.24.0",
+      "purl": "pkg:npm/moment@2.24.0",
+      "description": "",
+      "scope": "required"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/handlebars@4.1.2",
+      "name": "handlebars",
+      "version": "4.1.2",
+      "purl": "pkg:npm/handlebars@4.1.2",
+      "description": "Prototype pollution leading to remote code execution",
+      "scope": "required"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/serialize-javascript@2.1.0",
+      "name": "serialize-javascript",
+      "version": "2.1.0",
+      "purl": "pkg:npm/serialize-javascript@2.1.0",
+      "description": "Cross-site scripting",
+      "scope": "required"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/y18n@4.0.0",
+      "name": "y18n",
+      "version": "4.0.0",
+      "purl": "pkg:npm/y18n@4.0.0",
+      "description": "Prototype pollution",
+      "scope": "required"
+    }
+  ]
+}

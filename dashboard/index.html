@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23101A34%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%278%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%272.5%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%273%27 fill=%27%23C8382A%27/%3E%3C/svg%3E">
 <title>Exposure Desk</title>
 <style>
 :root{
@@ -195,6 +196,158 @@ tr.r:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
   padding:14px 16px;margin-bottom:20px;font-size:13.5px;color:#6B4A05}
 .warnbox b{display:block;margin-bottom:4px}
 .exp-row td{font-size:13.5px}
+#zdbar{display:flex;align-items:center;gap:12px;background:#7A1220;color:#fff;
+  padding:11px 22px;font-size:13.5px;border-bottom:1px solid #5C0D18}
+#zdbar.warn{background:#8A5A00;border-bottom-color:#6B4600}
+#zdbar b{font-weight:600}
+.zd-dot{width:9px;height:9px;border-radius:50%;background:#fff;flex:none;
+  animation:zdpulse 1.9s ease-in-out infinite}
+@keyframes zdpulse{0%,100%{opacity:1}50%{opacity:.35}}
+#zdbar-msg{flex:1}
+.zd-go{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.4);
+  color:#fff;padding:5px 12px;border-radius:4px;font-size:12.5px;cursor:pointer}
+.zd-go:hover{background:rgba(255,255,255,.28)}
+.zd-x{background:none;border:none;color:rgba(255,255,255,.75);font-size:19px;
+  line-height:1;cursor:pointer;padding:0 2px}
+.zd-x:hover{color:#fff}
+.rung{border:1px solid var(--line);border-radius:8px;margin-bottom:14px;
+  overflow:hidden}
+.rung>h4{margin:0;padding:11px 16px;background:var(--paper);font-size:13.5px;
+  border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center}
+.rung.gap>h4{background:#FBEEEF;color:#7A1220}
+.rung .badge{font-size:11px;font-weight:600;padding:2px 7px;border-radius:3px;
+  background:var(--navy);color:#fff}
+.rung.gap .badge{background:#7A1220}
+.rung-body{padding:13px 16px}
+.routine{border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.routine>h5{margin:0;padding:11px 16px;font-size:12.5px;font-weight:600;
+  border-bottom:1px solid var(--line);color:var(--ink2)}
+.routine>h5 b{color:var(--ink)}
+.rt-row{display:grid;grid-template-columns:1fr 200px 150px;gap:12px;
+  padding:9px 16px;border-bottom:1px solid var(--line);font-size:12.5px;
+  align-items:center}
+.rt-row:last-child{border-bottom:none}
+.rt-row .rt-repo{color:var(--ink2)}
+.rt-row .rt-fix{color:#2E6B3D;font-weight:500}
+.act{font-size:13px;margin:0 0 7px;padding-left:16px;position:relative}
+.act:before{content:"";position:absolute;left:0;top:7px;width:6px;height:6px;
+  border-radius:50%;background:var(--navy)}
+.blocked{font-size:12.5px;color:#7A1220;margin:0 0 5px;padding-left:16px;
+  position:relative}
+.blocked:before{content:"\2715";position:absolute;left:0;top:0;font-size:10px}
+.urg{font-size:11px;font-weight:600;padding:2px 8px;border-radius:3px}
+.urg.immediate{background:#7A1220;color:#fff}
+.urg.high{background:#8A5A00;color:#fff}
+.urg.planned{background:#E7EAF0;color:var(--ink2)}
+.urg.watch{background:#F1F3F7;color:#8792A8}
+.wl-pos{font-size:19px;font-weight:600;color:var(--navy);width:34px}
+.wl-why{font-size:13px;color:var(--ink2);margin-top:3px}
+.bell{position:relative;background:none;border:1px solid var(--edge-2);
+  color:#DCE3F2;border-radius:5px;padding:6px 9px;cursor:pointer;line-height:0}
+.bell:hover{background:var(--navy-3)}
+.bell.on{color:#fff;border-color:#C4453F}
+.bell.on svg{animation:bellring 2.4s ease-in-out infinite}
+@keyframes bellring{0%,88%,100%{transform:rotate(0)}90%{transform:rotate(11deg)}
+  94%{transform:rotate(-9deg)}97%{transform:rotate(5deg)}}
+.bell-badge{position:absolute;top:-6px;right:-6px;background:#C4453F;color:#fff;
+  font-size:10.5px;font-weight:600;min-width:17px;height:17px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;padding:0 4px;line-height:1}
+.drop{position:absolute;right:22px;top:52px;width:430px;background:#fff;
+  border:1px solid var(--line);border-radius:9px;z-index:60;
+  box-shadow:0 10px 34px rgba(16,26,52,.19);overflow:hidden}
+.drop h5{margin:0;padding:12px 16px;font-size:12.5px;color:var(--ink2);
+  border-bottom:1px solid var(--line);background:var(--paper)}
+.drop-i{padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer}
+.drop-i:hover{background:var(--paper)}
+.drop-i:last-child{border-bottom:none}
+.drop-i b{display:block;font-size:13px;margin-bottom:3px}
+.drop-i span{font-size:12px;color:var(--ink2)}
+.drop-empty{padding:20px 16px;font-size:13px;color:var(--ink2)}
+.pick{background:var(--card);border:1px solid var(--line);color:var(--ink2);
+  border-radius:4px;font-size:11.5px;padding:4px 9px;cursor:pointer}
+.pick:hover{border-color:var(--navy);color:var(--navy)}
+.pick.on{background:var(--navy);border-color:var(--navy);color:#fff}
+tr.picked td{background:#F3F7FF}
+.howmatched{font-size:12px;color:var(--ink2)}
+.repolink{color:var(--navy);border-bottom:1px dotted #9AA6BD;cursor:pointer}
+.repolink:hover,.repolink:focus{color:var(--red);border-bottom-color:var(--red);
+  outline:none}
+.zd-sec{margin-bottom:22px}
+.zd-sec>h3{font-size:14px;margin:0 0 10px}
+
+/* ---- disclosure pipeline -------------------------------------------- */
+/* Separated cards with a chevron between them. An earlier version drew the
+   arrows with CSS border triangles overlapping the card edge, which smeared
+   colour across the tinted stage; a glyph between flex items cannot. */
+.pipe{display:flex;align-items:stretch;gap:0;margin:0 0 8px}
+.pipe-st{flex:1;position:relative;background:var(--card);
+  border:1px solid var(--line);border-radius:8px;padding:14px 16px 13px}
+.pipe-ar{flex:none;width:26px;display:flex;align-items:center;
+  justify-content:center;color:#C3CAD8;font-size:17px;line-height:1}
+.pipe-st.live{background:#FCF1F2;border-color:#C9A2A7}
+.pipe-st.done{background:#F3F7F4;border-color:#D3E1D6}
+.pipe-n{font-size:26px;font-weight:600;line-height:1;color:var(--navy)}
+.pipe-st.live .pipe-n{color:#7A1220}
+.pipe-st.done .pipe-n{color:#2E6B3D}
+.pipe-t{font-size:12.5px;font-weight:600;margin:8px 0 3px}
+.pipe-d{font-size:11.5px;color:var(--ink2);line-height:1.5}
+.pipe-tag{display:inline-block;background:#7A1220;color:#fff;font-size:9.5px;
+  font-weight:600;padding:2px 7px;border-radius:3px;letter-spacing:.05em;
+  margin-bottom:7px}
+.pipe-sp{height:24px}
+.pipe-foot{font-size:12.5px;color:var(--ink2);margin:2px 0 20px;padding-left:2px}
+
+/* ---- sprint planner -------------------------------------------------- */
+.plan{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.plan-col{background:var(--card);border:1px solid var(--line);border-radius:9px;
+  display:flex;flex-direction:column;min-height:230px}
+.plan-col>h4{margin:0;padding:12px 16px;font-size:13px;
+  border-bottom:1px solid var(--line);display:flex;justify-content:space-between;
+  align-items:center}
+.plan-col>h4 span{font-size:11.5px;color:var(--ink2);font-weight:400}
+.plan-list{padding:9px;flex:1}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:7px;
+  padding:10px 12px;margin-bottom:8px;font-size:12.5px;position:relative}
+.card.mine{background:#F3F7FF;border-color:#C7D6F0}
+.card b{display:block;font-size:13px;margin-bottom:2px}
+.card.open{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.card.open:hover{border-color:var(--navy);box-shadow:0 2px 9px rgba(16,26,52,.08)}
+.card .why{color:var(--ink2);margin:4px 0 0;line-height:1.45}
+.card .meta{color:var(--ink2);font-size:11.5px}
+.card-act{position:absolute;top:9px;right:9px;display:flex;gap:4px}
+.mini{background:#fff;border:1px solid var(--line);border-radius:4px;
+  width:23px;height:23px;font-size:12px;line-height:1;cursor:pointer;
+  color:var(--ink2);padding:0}
+.mini:hover{border-color:var(--navy);color:var(--navy)}
+.mini.add{width:auto;padding:0 9px;font-size:11.5px}
+.plan-empty{padding:24px 14px;text-align:center;font-size:12.5px;
+  color:var(--ink2);line-height:1.6}
+.diverge{margin:12px 0 0;padding:11px 14px;border-radius:7px;font-size:12.5px;
+  background:#FDF6E7;border:1px solid #E8CFA0;color:#6B4A05}
+
+/* ---- exposure bars ---------------------------------------------------- */
+.bars{padding:4px 18px 14px}
+.bar-row{display:grid;grid-template-columns:210px 1fr 92px;gap:14px;
+  align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.bar-row:last-child{border-bottom:none}
+.bar-nm{font-size:13px;overflow:hidden}
+.bar-nm b{font-weight:500}
+.bar-nm small{display:block;color:var(--ink2);font-size:11px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.bar-tr{background:#EEF0F4;border-radius:3px;height:11px;overflow:hidden;
+  cursor:pointer}
+.bar-tr:hover{background:#E4E7EE}
+.bar-fl{height:100%;border-radius:3px;background:#3E4E70;transition:width .5s ease}
+.bar-row.sev-crit .bar-fl{background:#101A34}
+.bar-row.sev-high .bar-fl{background:#33405E}
+.bar-row.sev-med  .bar-fl{background:#5B6B85}
+.bar-row.sev-low  .bar-fl{background:#93A0B5}
+.bar-vl{font-size:12px;color:var(--ink2);text-align:right;line-height:1.35}
+.bar-vl b{display:block;font-size:13px;color:var(--ink);font-weight:500}
+.sev-chip{display:inline-block;font-size:10.5px;padding:1px 6px;border-radius:3px;
+  background:#EEF0F4;color:var(--ink2);margin-left:6px;vertical-align:1px}
+.bar-row.sev-crit .sev-chip{background:#F3E7E9;color:#7A1220}
+.bar-row.sev-high .sev-chip{background:#F0EDE6;color:#6B4A05}
 </style>
 </head>
 <body>
@@ -203,12 +356,14 @@ tr.r:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
   <div class="logo"><h1>Exposure Desk</h1><p id="org">connecting…</p></div>
   <div class="menu">
     <button class="on" data-v="home">Overview</button>
+    <button data-v="remed">Zero-day <span class="n" id="n-remed"></span></button>
     <button data-v="find">Findings <span class="n" id="n-find"></span></button>
     <button data-v="lookup">CVE lookup</button>
+
     <button data-v="repos">Repositories <span class="n" id="n-repo"></span></button>
     <button data-v="ctx">Business context <span class="n" id="n-bp"></span></button>
     <button data-v="impact">Risk reduction</button>
-    <button data-v="eval">Prioritisation evidence <span class="n" id="n-eval"></span></button>
+    <button data-v="work">Fix worklist <span class="n" id="n-work"></span></button>
   </div>
   <div class="foot"><span class="live" id="live"></span><span id="livetxt">checking…</span></div>
 </aside>
@@ -218,10 +373,25 @@ tr.r:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
   <button class="b" id="b-sync">Scan repositories</button>
   <button class="b" id="b-corr">Link Dependabot</button>
   <button class="b red" id="b-refresh">Check for fixes</button>
+  <button class="b" id="b-zd">Sync zero-day feeds</button>
   <span class="grow"></span>
+  <button class="bell" id="bell" title="Zero-day alerts">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path d="M12 22a2.1 2.1 0 0 0 2.1-2.1H9.9A2.1 2.1 0 0 0 12 22Zm6.3-6.3v-5.2
+        c0-3.2-1.7-5.9-4.7-6.6v-.7a1.6 1.6 0 1 0-3.2 0v.7c-3 .7-4.7 3.4-4.7 6.6v5.2
+        L3.6 17.8v1h16.8v-1Z" fill="currentColor"/></svg>
+    <span class="bell-badge" id="bell-badge" style="display:none">0</span>
+  </button>
   <span class="fresh" id="fresh"></span>
 </div>
 <div id="run"><span class="spin" id="run-spin"></span><span id="run-msg"></span><button class="x" id="run-x">×</button></div>
+
+<div id="zdbar" style="display:none">
+  <span class="zd-dot"></span>
+  <span id="zdbar-msg"></span>
+  <button class="zd-go" id="zdbar-go">Review &rarr;</button>
+  <button class="zd-x" id="zdbar-x">&times;</button>
+</div>
 
 <!-- ========================================================== OVERVIEW -->
 <section class="view on" id="v-home"><div class="pad">
@@ -275,6 +445,17 @@ tr.r:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
   <div class="hd"><h2>Repositories</h2>
     <p>Click a repository name to open it on GitHub. A repository with no business
        process mapped is unknown risk, not low risk.</p></div>
+  <div class="p"><h3>Upload an SBOM from anywhere</h3>
+    <div class="form">
+      <div class="wide"><label>CycloneDX or SPDX document</label>
+        <input type="file" id="sbom-file" accept=".json,.xml,.spdx,.cdx"></div>
+      <div><label>Label it as</label>
+        <input id="sbom-name" placeholder="vendor/payment-gateway"></div>
+      <div class="foot2"><button class="bsub" id="b-upsbom">Upload and scan</button>
+        <p class="hint">The document does not have to come from the configured
+           organisation. A vendor SBOM, a partner's export or a file generated
+           elsewhere is correlated the same way.</p></div>
+    </div></div>
   <div class="p"><h3>Monitor another repository</h3>
     <div class="form">
       <div class="wide"><label>Repository, in owner/name form</label>
@@ -349,19 +530,67 @@ tr.r:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
   </div>
 </div></section>
 
-<!-- ============================================================ IMPACT -->
 <section class="view" id="v-impact"><div class="pad">
   <div class="hd"><h2>Risk reduction</h2>
     <p>Measured from resolution timestamps recorded by GitHub, not estimated.</p></div>
   <div class="tiles" id="im-tiles"></div>
-  <div class="p"><h3>Business processes with open findings <span class="sub">a process is exposed while any repository supporting it has an unresolved finding</span></h3>
-    <table><thead><tr><th>Business process</th><th>Repositories</th><th class="n">Open findings</th><th class="n">Worst score</th><th></th></tr></thead>
-    <tbody id="at-risk"></tbody></table></div>
+  <div class="p"><h3>Which parts of the business are exposed
+      <span class="sub" id="ar-sub"></span></h3>
+    <div class="bars" id="at-risk"></div></div>
   <p><button class="b" id="b-snap" style="background:var(--card);color:var(--ink);border-color:var(--line)">Save snapshot</button></p>
 </div></section>
 
+<!-- ========================================================== FIX WORKLIST -->
+<section class="view" id="v-work"><div class="pad">
+  <div class="hd"><h2>Fix worklist</h2>
+    <p>The left column is what we would do, ordered by what it would cost the
+       business. The right is what you are actually taking on. Move things
+       across, reorder them, ignore us where you disagree.</p></div>
 
-<!-- ============================================================== EVAL -->
+  <div class="tiles" id="wl-tiles"></div>
+
+  <div class="plan">
+    <div class="plan-col">
+      <h4>Recommended <span id="wl-how"></span></h4>
+      <div class="plan-list" id="wl-rec"></div>
+    </div>
+    <div class="plan-col">
+      <h4>My plan <span id="wl-count"></span></h4>
+      <div class="plan-list" id="wl-mine"></div>
+    </div>
+  </div>
+  <div class="diverge" id="wl-diverge" style="display:none"></div>
+</div></section>
+
+<!-- ===================================================== ZERO-DAY REMEDIATION -->
+<!-- ========================================================= ZERO-DAY -->
+<section class="view" id="v-remed"><div class="pad">
+  <div class="hd"><h2>Zero-day</h2>
+    <p>A vulnerability is found, kept quiet while it is fixed, and only later
+       given a CVE number. Dependabot, Snyk and Trivy wait for that number.
+       This page covers everything before it arrives.</p></div>
+
+  <div class="pipe" id="zd-pipe"></div>
+  <p class="pipe-foot" id="zd-pipefoot"></p>
+
+  <div class="tiles" id="rm-tiles"></div>
+
+  <div class="zd-sec">
+    <h3>What to do about it</h3>
+    <div id="rm-body"></div>
+  </div>
+
+  <div class="zd-sec">
+    <h3>Every match, and how confident we are</h3>
+    <div class="p">
+      <table><thead><tr><th>Repository</th><th>Package</th><th>Version</th>
+        <th>Vulnerability</th><th>How we matched it</th>
+        <th class="n">Priority</th></tr></thead>
+        <tbody id="zd-body"></tbody></table></div>
+  </div>
+</div></section>
+
+
 <section class="view" id="v-eval"><div class="pad">
   <div class="hd"><h2>Prioritisation evidence</h2>
     <p>Does ranking by business impact actually beat ranking by technical
@@ -415,6 +644,11 @@ tr.r:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
 const API=(location.origin&&location.origin!=='null')?location.origin:'http://127.0.0.1:8000';
 const S={ex:[],quick:[],repos:[],techRank:new Map()};
 const $=s=>document.querySelector(s);
+// Binding helper. A handler attached to an element that no longer exists used
+// to throw at parse time and stop everything after it from running -- including
+// the initial data load -- so the page sat on "connecting..." with no clue why.
+const on=(sel,evt,fn)=>{const n=$(sel);if(n)n.addEventListener(evt,fn);
+  else console.warn('dashboard: no element',sel);};
 const el=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;
   if(x!==undefined)n.textContent=x;return n;};
 const N=n=>(n==null)?'\u2014':Number(n).toLocaleString();
@@ -470,7 +704,287 @@ let tt;const toast=(m,ms=3600)=>{const t=$('#toast');t.textContent=m;t.classList
 async function api(p,o){const r=await fetch(API+p,o);
   if(!r.ok)throw new Error('server returned '+r.status);return r.json();}
 
+// Plain-English explanation of how a finding was matched to your code. The
+// internal tier codes are precise but meaningless to anyone seeing the tool for
+// the first time, so the label leads and the code follows in brackets.
+const MATCH_LABEL={
+  T3_PURL:['Exact package and version',
+    'We know the package name and the exact versions affected, and yours is in range.'],
+  T1_COMMIT:['Source code commit',
+    'Matched on the upstream repository and the specific commits that carry the bug.'],
+  T2_PRODUCT:['Product name',
+    'Matched on vendor and product name because no package identifier was published. Worth a human check.'],
+  T0_PROJECT:['Project name only',
+    'All we know is the project name. Deliberately cautious, so confirm before acting.']};
+
+const URG_LABEL={immediate:'Do now',high:'This week',planned:'Schedule it',watch:'Watching'};
+let WL=[],PLAN=[];
+
+async function loadWorklist(){
+  let d;
+  try{ d=await api('/api/worklist?size=12'); }
+  catch(e){ $('#wl-rec').innerHTML='<p class="plan-empty">Could not load: '+
+    e.message+'</p>'; return; }
+
+  WL=(d.worklist||[]).map(r=>Object.assign({},r,{k:key(r)}));
+  const s=d.summary||{};
+  tiles('#wl-tiles',[
+    ['Open findings',String(s.total_candidates||0),'','across the portfolio'],
+    ['No fix available',String(s.unpatchable||0),(s.unpatchable?'bad':''),
+     'need mitigation, not an upgrade'],
+    ['Being exploited',String(s.exploited||0),(s.exploited?'bad':''),
+     'attackers are using these now'],
+    ['In your plan',String(PLAN.length),'','this sprint']]);
+  $('#wl-how').textContent=WL.length+' suggested';
+  $('#n-work').textContent=PLAN.length||'';
+  renderPlan();
+}
+
+function key(r){ return (r.repository||'')+'|'+(r.component||'')+'|'+(r.version||''); }
+
+function wlOpen(r){
+  if(r.kind==='zero-day'){
+    show('remed');
+    setTimeout(()=>{
+      const t=document.getElementById('zd-'+r.exposure_id);
+      if(t){ t.scrollIntoView({behavior:'smooth',block:'center'});
+        t.style.outline='2px solid #C4453F';
+        setTimeout(()=>t.style.outline='',2600); }
+    },350);
+    return;
+  }
+  if(r.exposure_id) openDetail(r.exposure_id);
+}
+
+function wlCard(r,i,mine){
+  const ident=Array.isArray(r.identifier)?r.identifier.join(', '):(r.identifier||'');
+  const acts=mine
+    ? '<button class="mini" data-up="'+i+'" title="Move up">&#9650;</button>'+
+      '<button class="mini" data-dn="'+i+'" title="Move down">&#9660;</button>'+
+      '<button class="mini" data-rm="'+r.k+'" title="Remove">&times;</button>'
+    : '<button class="mini add" data-add="'+r.k+'">Take this</button>';
+  return '<div class="card open'+(mine?' mine':'')+'" data-open="'+r.k+'" '+
+    'title="Open this finding">'+
+    '<div class="card-act">'+acts+'</div>'+
+    '<b>'+(r.component||'')+' '+(r.version||'')+'</b>'+
+    '<div class="meta">'+shortName(r.repository)+
+      (r.process_names&&r.process_names.length?' &middot; '+r.process_names.join(', ')
+        :' &middot; no process mapped')+
+      (ident?' &middot; '+ident:'')+
+      (r.kind==='zero-day'?' <span class="urg high">no CVE yet</span>':'')+'</div>'+
+    '<p class="why">'+(r.reason||'')+'</p></div>';
+}
+
+function renderPlan(){
+  const taken=new Set(PLAN.map(p=>p.k));
+  const rec=WL.filter(r=>!taken.has(r.k));
+
+  $('#wl-rec').innerHTML=rec.length?rec.map(r=>wlCard(r,0,false)).join('')
+    :'<p class="plan-empty">Everything we suggested is in your plan.</p>';
+  $('#wl-mine').innerHTML=PLAN.length?PLAN.map((r,i)=>wlCard(r,i,true)).join('')
+    :'<p class="plan-empty">Nothing picked yet.<br>Take items from the left, or '+
+     'add your own order &mdash; the recommendation is advice, not instruction.</p>';
+  $('#wl-count').textContent=PLAN.length?PLAN.length+' picked':'';
+
+  document.querySelectorAll('.card.open').forEach(c=>c.onclick=e=>{
+    if(e.target.closest('.card-act')) return;      // the buttons act, not the card
+    const r=WL.concat(PLAN).find(x=>x.k===c.dataset.open);
+    if(r) wlOpen(r);
+  });
+  document.querySelectorAll('#wl-rec [data-add]').forEach(b=>b.onclick=()=>{
+    const r=WL.find(x=>x.k===b.dataset.add);
+    if(r){ PLAN.push(r); loadWorklist(); }});
+  document.querySelectorAll('#wl-mine [data-rm]').forEach(b=>b.onclick=()=>{
+    PLAN=PLAN.filter(x=>x.k!==b.dataset.rm); loadWorklist();});
+  document.querySelectorAll('#wl-mine [data-up]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.up; if(i>0){ const t=PLAN[i];PLAN[i]=PLAN[i-1];PLAN[i-1]=t;
+      loadWorklist(); }});
+  document.querySelectorAll('#wl-mine [data-dn]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.dn; if(i<PLAN.length-1){ const t=PLAN[i];PLAN[i]=PLAN[i+1];
+      PLAN[i+1]=t; loadWorklist(); }});
+
+  // Say something useful only when the developer's order actually departs from
+  // ours, and name what they skipped -- a disagreement worth surfacing, not a
+  // scolding.
+  const box=$('#wl-diverge');
+  if(!PLAN.length){ box.style.display='none'; return; }
+  const topRec=WL.slice(0,PLAN.length).map(r=>r.k);
+  const skipped=WL.filter(r=>topRec.indexOf(r.k)>=0 &&
+    !PLAN.some(p=>p.k===r.k));
+  if(!skipped.length){ box.style.display='none'; return; }
+  box.style.display='block';
+  box.innerHTML='<b>Your order differs from ours.</b> You have not taken '+
+    skipped.map(r=>'<b>'+r.component+'</b> in '+shortName(r.repository)).join(', ')+
+    '. We placed '+(skipped.length===1?'it':'them')+' high because: '+
+    skipped[0].reason+' That may still be the right call &mdash; you know the '+
+    'system, we only know the data.';
+}
+
+// ---- zero-day -------------------------------------------------------------
+
+const PIPE=[
+  {k:'sealed', t:'Still secret',
+   d:'Proven to exist. The affected software is not named yet so the maintainer can fix it first.'},
+  {k:'revealed', t:'Named, no fix',
+   d:'We now know the software. No CVE number and no patch. Nothing else in your toolchain sees this.',
+   live:true},
+  {k:'identified', t:'CVE issued',
+   d:'A number exists. This is the first moment a normal scanner reacts.'},
+  {k:'patched', t:'Fixed upstream',
+   d:'A safe version has been released. Now it is just an upgrade.', done:true},
+];
+
+async function loadRemediation(){
+  let d,ex,wl,m;
+  try{
+    [d,ex,wl,m]=await Promise.all([
+      api('/api/zeroday/remediation'),
+      api('/api/zeroday/exposures?state=open&limit=200'),
+      api('/api/zeroday/watchlist'),
+      api('/api/zeroday/metrics')]);
+  }catch(e){ $('#rm-body').innerHTML='<p class="sub">Could not load: '+e.message+'</p>';
+    return; }
+
+  const byStage=(m.findings_by_stage)||{};
+  const counts={sealed:(wl.sealed&&wl.sealed.count)||byStage.commitment||0,
+                revealed:byStage.revealed||0,
+                identified:byStage.identified||0,
+                patched:byStage.patched||0};
+  $('#zd-pipe').innerHTML=PIPE.map((p,i)=>
+    (i?'<div class="pipe-ar">\u203A</div>':'')+
+    '<div class="pipe-st'+(p.live?' live':'')+(p.done?' done':'')+'">'+
+    (p.live?'<span class="pipe-tag">THE GAP</span>':'<div class="pipe-sp"></div>')+
+    '<div class="pipe-n">'+(counts[p.k]||0)+'</div>'+
+    '<div class="pipe-t">'+p.t+'</div><div class="pipe-d">'+p.d+'</div></div>').join('');
+
+  const noId=m.without_identifier||0,total=m.findings_total||0;
+  $('#zd-pipefoot').innerHTML='Of '+total+' vulnerabilities we tracked, <b>'+noId+
+    '</b> have no CVE number'+(total?' ('+Math.round(noId/total*100)+'%)':'')+
+    '. Those are invisible to every scanner that waits for one. '+
+    ((wl.unmatched&&wl.unmatched.count)||0)+' were checked against your code and '+
+    'do not affect it.';
+
+  const s=d.summary||{},u=s.by_urgency||{};
+  tiles('#rm-tiles',[
+    ['Affecting your code',String(s.total||0),'','confirmed, no CVE published'],
+    ['Need action now',String(s.needs_attention||0),(s.needs_attention?'bad':''),
+     'on business-critical systems'],
+    ['Cannot be patched',String(s.unpatchable||0),(s.unpatchable?'bad':''),
+     'no safe version exists yet'],
+    ['Do today',String(u.immediate||0),(u.immediate?'bad':''),
+     'exploited, or critical and unpatchable']]);
+  $('#n-remed').textContent=(d.findings||[]).length||'';
+
+  // Lead with what actually needs a decision. Six near-identical "a fix
+  // exists, upgrade it" cards bury the one finding that cannot be patched,
+  // which is the only one on the page a person has to think about.
+  const rows=d.findings||[];
+  const needs=rows.filter(r=>{const p=r.plan||{};
+    return !p.patch_available || p.urgency==='immediate' || p.urgency==='high';});
+  const routine=rows.filter(r=>needs.indexOf(r)<0);
+
+  const card=r=>{
+    const p=r.plan||{};
+    return '<div class="rung'+(p.is_the_gap?' gap':'')+'" id="zd-'+r.exposure_id+'">'+
+      '<h4><span class="badge">'+(p.patch_available?'Fix exists':'No fix yet')+'</span>'+
+        '<span>'+(r.component||'')+' '+(r.version||'')+' in '+
+          shortName(r.repository)+'</span>'+
+        '<span class="urg '+(p.urgency||'')+'">'+(URG_LABEL[p.urgency]||'')+
+        '</span></h4>'+
+      '<div class="rung-body">'+
+        '<p style="margin:0 0 9px;font-size:13px">'+(r.summary||'')+
+          (r.url?' <a href="'+r.url+'" target="_blank" rel="noopener">read the advisory &rarr;</a>':'')+
+        '</p>'+
+        '<p class="sub" style="margin:0 0 10px"><b>Why it matters here:</b> '+
+          (p.urgency_reason||'')+
+          (p.owner?' Owner: <b>'+p.owner+'</b>.':' No owner mapped for this repository.')+'</p>'+
+        (p.blocked&&p.blocked.length?
+          p.blocked.map(b=>'<p class="blocked">'+b+'</p>').join(''):'')+
+        '<p style="margin:10px 0 6px;font-size:12.5px;font-weight:600">Do this</p>'+
+        (p.actions||[]).map(a=>'<p class="act"><b>'+a.action+'</b> \u2014 '+
+          a.detail+'</p>').join('')+
+      '</div></div>';
+  };
+
+  let html='';
+  if(needs.length) html+=needs.map(card).join('');
+  else if(rows.length) html+='<div class="p"><p class="sub" style="padding:15px">'+
+    'Nothing here needs a decision \u2014 every finding below has a published fix.</p></div>';
+
+  if(routine.length){
+    html+='<div class="routine" style="margin-top:'+(needs.length?'14px':'0')+'">'+
+      '<h5><b>'+routine.length+'</b> more already ha'+(routine.length===1?'s':'ve')+
+      ' a published fix \u2014 upgrade and they are done</h5>'+
+      routine.map(r=>'<div class="rt-row" id="zd-'+r.exposure_id+'">'+
+        '<span><b>'+(r.component||'')+'</b> '+(r.version||'')+
+          '<span class="rt-repo"> in '+shortName(r.repository)+'</span></span>'+
+        '<span class="rt-fix">upgrade to '+((r.plan||{}).upgrade_target||'the fixed version')+'</span>'+
+        '<span class="sub">'+((r.plan||{}).owner||'no owner mapped')+'</span>'+
+        '</div>').join('')+'</div>';
+  }
+  if(!rows.length) html='<div class="p"><p class="sub" style="padding:16px">'+
+    'Nothing affecting your code right now. Press &ldquo;Sync zero-day feeds&rdquo; '+
+    'to check again.</p></div>';
+  $('#rm-body').innerHTML=html;
+
+  const list=ex.exposures||[];
+  $('#zd-body').innerHTML=list.length?list.map(r=>{
+    const f=r.finding||{},mm=MATCH_LABEL[r.evidence_tier]||['\u2014',''];
+    const ident=(f.cve_ids&&f.cve_ids[0])||(f.ghsa_ids&&f.ghsa_ids[0])||f.source_id||'';
+    return '<tr><td>'+shortName(r.repository)+'</td><td>'+(r.component||'')+'</td>'+
+      '<td>'+(r.version||'')+'</td>'+
+      '<td>'+(f.url?'<a href="'+f.url+'" target="_blank" rel="noopener">'+ident+'</a>':ident)+
+        '<div class="sub">'+(f.summary||'').slice(0,80)+'</div></td>'+
+      '<td>'+mm[0]+'<div class="howmatched">'+mm[1]+'</div></td>'+
+      '<td class="n">'+(r.score!=null?Number(r.score).toFixed(2):'')+'</td></tr>';
+  }).join(''):'<tr><td colspan="6" class="sub">Nothing yet. Press '+
+    '&ldquo;Sync zero-day feeds&rdquo; in the bar above.</td></tr>';
+}
+
+let ALERTS=[];
+async function loadZeroDayBar(){
+  let d;
+  try{ d=await api('/api/zeroday/alerts'); }catch(e){ return; }
+  ALERTS=d.alerts||[];
+  const bell=$('#bell'),badge=$('#bell-badge');
+  if(!d.count){ bell.classList.remove('on');badge.style.display='none';
+    $('#zdbar').style.display='none'; return; }
+  bell.classList.add('on');
+  badge.textContent=d.count>9?'9+':d.count;badge.style.display='flex';
+
+  const bar=$('#zdbar');
+  bar.classList.toggle('warn',!d.immediate);
+  $('#zdbar-msg').innerHTML='<b>'+d.count+' zero-day '+
+    (d.count===1?'vulnerability':'vulnerabilities')+' in your code</b>'+
+    (d.unpatchable?' \u00b7 '+d.unpatchable+' with no fix available yet':'');
+  bar.style.display='flex';
+}
+
+function toggleBell(){
+  const open=$('#alertdrop');
+  if(open){ open.remove(); return; }
+  const box=el('div','drop');box.id='alertdrop';
+  box.innerHTML='<h5>Zero-day alerts \u2014 click one to see what to do</h5>'+
+    (ALERTS.length?ALERTS.map(a=>
+      '<div class="drop-i" data-id="'+(a.exposure_id||'')+'">'+
+      '<b>'+a.headline+'</b><span>'+a.reason+
+      (a.repository?'<br>'+shortName(a.repository):'')+'</span></div>').join('')
+     :'<div class="drop-empty">Nothing needs your attention.</div>');
+  document.body.append(box);
+  box.querySelectorAll('.drop-i').forEach(n=>n.onclick=()=>{
+    box.remove();show('remed');
+    setTimeout(()=>{
+      const t=document.getElementById('zd-'+n.dataset.id);
+      if(t){ t.scrollIntoView({behavior:'smooth',block:'center'});
+        t.style.outline='2px solid #C4453F';
+        setTimeout(()=>t.style.outline='',2600); }
+    },350);
+  });
+}
+
 function show(v){
+  if(v==='work')loadWorklist();
+  if(v==='remed')loadRemediation();
   document.querySelectorAll('.view').forEach(s=>s.classList.remove('on'));
   $('#v-'+v).classList.add('on');
   document.querySelectorAll('.menu button').forEach(b=>
@@ -478,6 +992,20 @@ function show(v){
   window.scrollTo(0,0);
 }
 document.querySelectorAll('.menu button').forEach(b=>b.onclick=()=>show(b.dataset.v));
+
+on('#zdbar-x','click',()=>{ $('#zdbar').style.display='none'; });
+on('#zdbar-go','click',()=>show('remed'));
+on('#bell','click',toggleBell);
+
+$('#b-zd').onclick=()=>{
+  show('zeroday');
+  act($('#b-zd'),'Syncing\u2026','/api/zeroday/sync?sources=cvd,ghsa',
+      r=>r.fetched+' pre-disclosure findings, '+r.exposures+' exposures ('+
+        Object.entries(r.tiers||{}).filter(([,n])=>n).map(([t,n])=>t+': '+n).join(', ')+
+        '), '+r.watchlist+' sealed on the watchlist',
+      'Polling the pre-disclosure feeds\u2026')
+    .then(()=>{loadRemediation();loadZeroDayBar();}).catch(()=>{});
+};
 
 async function act(btn,busy,path,msg,running){
   btn.disabled=true;const was=btn.textContent;btn.textContent=busy;
@@ -797,6 +1325,34 @@ async function openDetail(id){
 }
 
 /* ---------------------------------------------------------------- REPOS */
+$('#b-upsbom').onclick=async e=>{
+  const f=$('#sbom-file').files[0];
+  if(!f){toast('Choose a CycloneDX or SPDX file first.');return;}
+  const btn=e.target;btn.disabled=true;const was=btn.textContent;
+  btn.textContent='Uploading\u2026';
+  runShow('Reading '+f.name+' \u2014 parsing, quality-gating and correlating.');
+  try{
+    const text=await f.text();
+    let body;
+    try{ body=JSON.parse(text); }
+    catch(_){ throw new Error('That file is not valid JSON. XML SPDX is not '
+      +'accepted through this form.'); }
+    const label=$('#sbom-name').value.trim()||('upload/'+f.name
+      .replace(/\.(json|cdx|spdx)$/i,''));
+    // repository is a query parameter; the document is the whole body
+    const r=await api('/api/sbom/upload?repository='
+      +encodeURIComponent(label),{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)});
+    runShow(r.note||(`Ingested ${f.name}: ${N(r.components||0)} components, `
+      +`${N(r.exposures||0)} findings.`),'ok');
+    setTimeout(runHide,8000);
+    $('#sbom-file').value='';$('#sbom-name').value='';
+    await loadAll();
+  }catch(err){runShow('Could not ingest that SBOM \u2014 '+err.message,'bad');}
+  finally{btn.disabled=false;btn.textContent=was;}
+};
+
 $('#b-addrepo').onclick=async e=>{
   const full=$('#add-repo').value.trim();
   if(!full.includes('/')){toast('Use the owner/name form, for example octocat/hello-world.');return;}
@@ -875,6 +1431,13 @@ function fillForm(p){
 }
 $('#b-cancel').onclick=()=>fillForm(null);
 
+function gotoRepo(full){
+  const name=shortName(full);
+  $('#f-state').value='open'; $('#f-tier').value=''; $('#f-text').value=name;
+  show('find');
+  loadQueue().then(()=>toast('Showing open findings in '+name));
+}
+
 function renderProcs(list){
   S.procs=list;
   const b=$('#bp-body');b.innerHTML='';
@@ -887,7 +1450,23 @@ function renderProcs(list){
     tr.onkeydown=e=>{if(e.key==='Enter')fillForm(p);};
     tr.title='Click to edit this process';
     tr.append(el('td','nm',p.name));
-    tr.append(el('td','',(p.repositories||[]).map(shortName).join(', ')||'\u2014'));
+    // Repository names are the natural way into a process's findings, so they
+    // are links rather than text. stopPropagation keeps them from also opening
+    // the row's edit form, which is what the rest of the row does.
+    const rc=el('td');
+    const repos=p.repositories||[];
+    if(!repos.length) rc.textContent='\u2014';
+    else repos.forEach((full,i)=>{
+      const a=el('span','repolink',shortName(full));
+      a.tabIndex=0;
+      a.title='See open findings in '+shortName(full);
+      const go=e=>{ e.stopPropagation(); gotoRepo(full); };
+      a.onclick=go;
+      a.onkeydown=e=>{ if(e.key==='Enter'){ e.stopPropagation(); gotoRepo(full); } };
+      rc.append(a);
+      if(i<repos.length-1) rc.append(document.createTextNode(', '));
+    });
+    tr.append(rc);
     tr.append(el('td','',p.revenue_dependency));
     tr.append(el('td','',p.customer_facing?'Yes':'No'));
     tr.append(el('td','',p.availability_requirement));
@@ -940,48 +1519,53 @@ function renderImpact(im){
   const body=$('#at-risk');body.innerHTML='';
   const names=z.at_risk_process_names||[];
   if(!names.length){
-    const tr=el('tr'),td=el('td');td.colSpan=5;td.className='blank';
-    td.innerHTML='<b>Every mapped process is clear.</b>No open finding affects a business process.';
-    tr.append(td);body.append(tr);return;
+    body.innerHTML='<p class="plan-empty"><b>Every mapped process is clear.</b>'+
+      '<br>No open finding affects a business process.</p>';
+    return;
   }
   const open=S.ex.filter(e=>e.state==='open');
-  names.forEach(name=>{
+  // Ranked bars rather than a table: eighteen rows of similar numbers hides the
+  // answer, whereas relative bar length gives it at a glance.
+  const ranked=names.map(name=>{
     const mine=open.filter(e=>((e.explanation||{}).driving_process||'')===name);
-    const worst=mine.reduce((m,e)=>Math.max(m,e.business_score||0),0);
-    const repos=[...new Set(mine.map(e=>shortName(e.repository)))];
-    const tr=el('tr');
-    tr.append(el('td','nm',name));
-    tr.append(el('td','',repos.join(', ')||'\u2014'));
-    tr.append(el('td','n',N(mine.length)));
-    tr.append(el('td','n',worst?worst.toFixed(2):'\u2014'));
-    const a=el('td');
-    if(mine.length){
-      const b=el('button','b',"Show findings");
-      b.style.cssText='background:var(--card);color:var(--ink);border-color:var(--line);padding:5px 10px';
-      b.onclick=()=>{$('#f-state').value='open';$('#f-tier').value='';
-        $('#f-text').value=repos[0]||'';show('find');loadQueue();};
-      a.append(b);
-    }
-    tr.append(a);body.append(tr);
-  });
+    return {name:name,n:mine.length,
+      worst:mine.reduce((m,e)=>Math.max(m,e.business_score||0),0),
+      repos:[...new Set(mine.map(e=>shortName(e.repository)))]};
+  }).filter(r=>r.n).sort((a,b)=>b.worst-a.worst||b.n-a.n);
+
+  const SHOW=6, top=ranked.slice(0,SHOW);
+  const sub=$('#ar-sub');
+  if(sub)sub.textContent=ranked.length>SHOW
+    ? 'the '+SHOW+' most affected of '+ranked.length+' \u2014 bar length is the '+
+      'number of open findings; click one to see them'
+    : 'bar length is the number of open findings; click one to see them';
+
+  // Bar length encodes the number of open findings, which is a real quantity
+  // worth comparing across processes. Severity is a band, not a length, so it
+  // is shown as a chip instead -- drawing a 7.4 as three-quarters of a bar
+  // implies a precision the score does not have.
+  const band=v=>v>=7.5?'sev-crit':v>=5?'sev-high':v>=2.5?'sev-med':'sev-low';
+  const label=v=>v>=7.5?'critical':v>=5?'high':v>=2.5?'medium':'low';
+  const most=Math.max.apply(null,top.map(r=>r.n).concat([1]));
+
+  body.innerHTML=top.map(r=>
+    '<div class="bar-row '+band(r.worst)+'">'+
+    '<div class="bar-nm"><b>'+r.name+'</b>'+
+      '<small>'+(r.repos.slice(0,2).join(', ')||'\u2014')+
+      (r.repos.length>2?' +'+(r.repos.length-2)+' more':'')+'</small></div>'+
+    '<div class="bar-tr" data-repo="'+(r.repos[0]||'')+'" title="'+r.n+
+      ' open finding'+(r.n===1?'':'s')+' \u2014 click to view">'+
+      '<div class="bar-fl" style="width:'+Math.max(3,Math.round(r.n/most*100))+
+      '%"></div></div>'+
+    '<div class="bar-vl"><b>'+r.n+'</b>open'+
+      '<span class="sev-chip">'+label(r.worst)+'</span></div>'+
+    '</div>').join('');
+
+  body.querySelectorAll('.bar-tr').forEach(n=>n.onclick=()=>{
+    $('#f-state').value='open';$('#f-tier').value='';
+    $('#f-text').value=n.dataset.repo||'';show('find');loadQueue();});
 }
 
-
-
-/* ------------------------------------------------------------ EVALUATION */
-let EVROWS=[];
-const RUBRIC=[
-  [3,/payment|checkout|authentication|fraud|patient|card/i],
-  [2,/order|billing|fulfil|payroll|subject request|partner/i],
-  [1,/logging|analytics|marketing|notification|reporting|internal/i],
-];
-function suggestGrade(row){
-  const p=(row.business_process||'').toLowerCase();
-  if(!row.business_process) return 0;
-  if((row.regulatory_scope||[]).length && /payment|checkout|patient|fraud/i.test(p)) return 3;
-  for(const [g,re] of RUBRIC) if(re.test(p)) return g;
-  return (row.regulatory_scope||[]).length?2:1;
-}
 function evProgress(){
   const done=EVROWS.filter(r=>r.relevance!=null&&r.relevance!=='').length;
   $('#ev-progress').textContent=done+' of '+EVROWS.length+' graded';
@@ -1209,11 +1793,11 @@ async function runLookup(){
   if(d.note){const n=el('p','hint',d.note);
     n.style.cssText='padding:14px 18px;margin:0';out.append(n);}
 }
-$('#lk-go').onclick=runLookup;
-$('#lk-q').addEventListener('keydown',e=>{if(e.key==='Enter')runLookup();});
+on('#lk-go','click',runLookup);
+on('#lk-q','keydown',e=>{if(e.key==='Enter')runLookup();});
 
-['f-state','f-tier','f-dd'].forEach(i=>$('#'+i).onchange=loadQueue);
-$('#f-text').oninput=renderFindings;
+['f-state','f-tier','f-dd'].forEach(i=>on('#'+i,'change',loadQueue));
+on('#f-text','input',renderFindings);
 
 async function loadQueue(){
   S.ex=await api(`/api/exposures?state=${$('#f-state').value}&limit=500&dedupe=${$('#f-dd').checked}`);
@@ -1237,6 +1821,9 @@ async function loadAll(){
       api('/api/impact'),api('/api/repositories'),api('/api/business-processes')]);
     await loadQueue();
     renderHome(f,im);renderRepos(repos);renderProcs(procs);renderImpact(im);
+    // The zero-day alert bar is intentionally the last thing loaded: a failure
+    // here must not stop the rest of the dashboard rendering.
+    loadZeroDayBar();
   }catch(e){
     $('#live').classList.add('off');$('#livetxt').textContent='Not connected';
     toast('Cannot reach the analyzer at '+API+'. Start it with: uvicorn sbom_c2.api:app',9000);

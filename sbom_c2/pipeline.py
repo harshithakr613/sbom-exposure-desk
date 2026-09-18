@@ -9,11 +9,12 @@ import datetime as dt
 import json
 import logging
 
-from . import bia, cpe, depgraph, feeds, matching, quality, sbom_formats
+from . import (bia, config, cpe, depgraph, feeds, matching, quality,
+               sbom_formats, zeroday_feeds, zeroday_match, zeroday_score)
 from .github_client import GitHubClient
 from .models import (
     BusinessProcess, Component, Exposure, ProcessRepositoryLink, RemediationEvent,
-    Repository, Vulnerability,
+    Repository, Vulnerability, ZeroDayExposure, ZeroDayFinding,
 )
 
 
@@ -375,3 +376,304 @@ def run_full_pipeline(session, client: GitHubClient):
             summary["errors"].append("%s: %s" % (repository.full_name, error))
 
     return summary
+
+
+# --------------------------------------------------------------------------
+# Zero-day / pre-disclosure pipeline  (Capstone 1, Objectives 2-5)
+# --------------------------------------------------------------------------
+
+def _csv(values):
+    return ",".join(str(v) for v in values or []) or None
+
+
+def store_zero_day_findings(session, findings):
+    """
+    Upsert normalised pre-disclosure findings.
+
+    Upsert rather than replace, because `first_seen_at` is the measurement that
+    makes Pre-CVE Lead Time possible: it records when this system could first
+    have acted, which is the whole comparison against identifier-keyed tooling.
+    Wiping and reinserting on every poll would destroy it.
+    """
+    created = updated = 0
+    for finding in findings:
+        source, source_id = finding.get("source"), finding.get("source_id")
+        if not source or not source_id:
+            continue
+
+        row = (session.query(ZeroDayFinding)
+               .filter_by(source=source, source_id=str(source_id)).one_or_none())
+        if row is None:
+            row = ZeroDayFinding(source=source, source_id=str(source_id),
+                                 first_seen_at=_now())
+            session.add(row)
+            created += 1
+        else:
+            updated += 1
+
+        row.stage = finding.get("stage")
+        row.evidence_tier = finding.get("evidence_tier")
+        row.project = finding.get("project")
+        row.bug_class = finding.get("bug_class")
+        row.summary = finding.get("summary")
+        row.package_name = finding.get("package_name")
+        row.ecosystem = finding.get("ecosystem")
+        row.purl = finding.get("purl")
+        row.repo_url = finding.get("repo_url")
+        row.severity_band = finding.get("severity_band")
+        row.severities = json.dumps(finding.get("severities") or {})
+        row.commit_ranges = json.dumps(finding.get("commit_ranges") or [])
+        row.affected_ranges = json.dumps(finding.get("affected_ranges") or [])
+        row.fixed_version = finding.get("fixed_version")
+        row.cve_ids = _csv(finding.get("cve_ids"))
+        row.ghsa_ids = _csv(finding.get("ghsa_ids"))
+        row.patched = bool(finding.get("patched"))
+        row.exploited = bool(finding.get("exploited"))
+        row.kev_due_date = finding.get("kev_due_date")
+        row.committed_at = finding.get("committed_at")
+        row.revealed_at = finding.get("revealed_at")
+        row.patched_at = finding.get("patched_at")
+        row.last_seen_at = _now()
+        row.url = finding.get("url")
+
+    session.commit()
+    return created, updated
+
+
+def _components_by_repository(session):
+    """Inventory in the shape the tier matchers expect."""
+    out = {}
+    for repository in session.query(Repository).all():
+        out[repository.full_name] = [
+            {
+                "name": c.name, "version": c.version, "ecosystem": c.ecosystem,
+                "purl": c.purl, "cpe": c.cpe, "direct": c.direct,
+                "path": c.dependency_path,
+            }
+            for c in session.query(Component).filter_by(repository_id=repository.id)
+        ]
+    return out
+
+
+def correlate_zero_day(session, findings=None):
+    """
+    Correlate stored findings against the inventory and persist the exposures.
+
+    Each hit is scored in degraded mode -- Consensus Severity Proxy for CVSS,
+    Disclosure-Stage Prior for EPSS -- and discounted by the confidence of the
+    tier that produced the match, so a T0 project-name hit cannot outrank a
+    PURL-verified finding of equal severity.
+    """
+    if findings is None:
+        findings = [_finding_to_dict(r) for r in
+                    session.query(ZeroDayFinding).filter(
+                        ZeroDayFinding.stage != zeroday_feeds.STAGE_COMMITMENT)]
+
+    inventory = _components_by_repository(session)
+    results = zeroday_match.correlate(findings, inventory)
+
+    repositories = {r.full_name: r for r in session.query(Repository).all()}
+    created = 0
+
+    for row in results:
+        repository = repositories.get(row["repository"])
+        if repository is None:
+            continue
+        finding = row["finding"]
+        stored = (session.query(ZeroDayFinding).filter_by(
+            source=finding["source"],
+            source_id=str(finding["source_id"])).one_or_none())
+        if stored is None:
+            continue
+
+        processes, regimes = repository_business_context(session, repository)
+        criticality, _detail = bia.repository_criticality(
+            [p.as_attributes() for p in processes])
+
+        scored = zeroday_score.score_exposure(
+            finding, criticality, regimes,
+            tier=row["tier"], confidence=row["confidence"])
+
+        exposure = (session.query(ZeroDayExposure).filter_by(
+            finding_id=stored.id, repository_id=repository.id,
+            component_name=row["component_name"],
+            component_version=row["component_version"]).one_or_none())
+        if exposure is None:
+            exposure = ZeroDayExposure(
+                finding_id=stored.id, repository_id=repository.id,
+                component_name=row["component_name"],
+                component_version=row["component_version"],
+                detected_at=_now(), state="open")
+            session.add(exposure)
+            created += 1
+
+        exposure.ecosystem = row["ecosystem"]
+        exposure.purl = row["purl"]
+        exposure.evidence_tier = row["tier"]
+        exposure.match_confidence = row["confidence"]
+        exposure.match_reason = row["reason"]
+        exposure.verified = row["verified"]
+        exposure.zero_day_score = scored["score"]
+        exposure.tier = scored["tier"]
+        exposure.degraded = scored["degraded"]
+        exposure.score_explanation = json.dumps({
+            "summary": zeroday_score.explain(scored),
+            "substitutions": scored["substitutions"],
+            "contributions": scored["contributions"],
+            "evidence_tier": scored["evidence_tier"],
+            "evidence_confidence": scored["evidence_confidence"],
+            "match_reason": row["reason"],
+            "undiscounted_score": scored["undiscounted_score"],
+        }, default=str)
+
+    session.commit()
+    return created, zeroday_match.tier_breakdown(results)
+
+
+def _finding_to_dict(row):
+    """Rehydrate a stored finding into the shape the matchers and scorer use."""
+    def _load(text, default):
+        try:
+            return json.loads(text) if text else default
+        except ValueError:
+            return default
+
+    return zeroday_feeds.PreDisclosureFinding.make(
+        source=row.source,
+        source_id=row.source_id,
+        stage=row.stage,
+        evidence_tier=row.evidence_tier,
+        project=row.project,
+        bug_class=row.bug_class,
+        summary=row.summary,
+        package_name=row.package_name,
+        ecosystem=row.ecosystem,
+        purl=row.purl,
+        repo_url=row.repo_url,
+        commit_ranges=_load(row.commit_ranges, []),
+        affected_ranges=_load(row.affected_ranges, []),
+        fixed_version=row.fixed_version,
+        severity_band=row.severity_band,
+        severities=_load(row.severities, {}),
+        cve_ids=[c for c in (row.cve_ids or "").split(",") if c],
+        ghsa_ids=[g for g in (row.ghsa_ids or "").split(",") if g],
+        patched=bool(row.patched),
+        exploited=bool(row.exploited),
+        kev_due_date=row.kev_due_date,
+        committed_at=row.committed_at,
+        revealed_at=row.revealed_at,
+        patched_at=row.patched_at,
+        url=row.url,
+    )
+
+
+def run_zero_day_pipeline(session, sources=None, github_token=None,
+                          use_kev=True):
+    """
+    Poll the pre-disclosure feeds, store, correlate and score.
+
+    Runs independently of the CVE pipeline on purpose. The published path needs
+    a full SBOM ingest; this one only needs the inventory that is already
+    stored, so it can poll every few minutes without re-pulling dependency
+    graphs -- which is what makes minutes-after-reveal alerting achievable.
+
+    OSS-Fuzz is queried per project rather than by downloading the whole
+    ecosystem dump, using the project names already present in the inventory.
+    """
+    summary = {"sources": sources or config.ZERODAY_SOURCES,
+               "fetched": 0, "created": 0, "updated": 0,
+               "exposures": 0, "tiers": {}, "errors": {}}
+
+    projects = sorted({
+        zeroday_match.normalise_project(c.name)
+        for c in session.query(Component).all() if c.name
+    })
+
+    findings, errors = zeroday_feeds.collect(
+        sources=summary["sources"], projects=projects,
+        github_token=github_token)
+    summary["errors"] = errors
+    summary["fetched"] = len(findings)
+
+    if use_kev:
+        try:
+            zeroday_feeds.enrich_with_kev(findings)
+        except Exception as error:
+            log.warning("KEV enrichment skipped: %s", error)
+            summary["errors"]["kev"] = str(error)
+
+    created, updated = store_zero_day_findings(session, findings)
+    summary["created"], summary["updated"] = created, updated
+
+    actionable = [f for f in findings
+                  if f.get("stage") != zeroday_feeds.STAGE_COMMITMENT]
+    exposures, tiers = correlate_zero_day(session, actionable)
+    summary["exposures"], summary["tiers"] = exposures, tiers
+
+    summary["watchlist"] = sum(
+        1 for f in findings if f.get("stage") == zeroday_feeds.STAGE_COMMITMENT)
+    return summary
+
+
+def pre_cve_lead_time(session):
+    """
+    Pre-CVE Lead Time  (Capstone 1, Objective 5).
+
+    For every finding this system saw before an identifier existed and which
+    later received one, how many days earlier did it become actionable here
+    than it would have been for a tool keyed on the published feed?
+
+    The ground truth is constructed from findings that eventually *did* get an
+    identifier, so the comparison against identifier-keyed tooling is exact
+    rather than hypothetical. Findings that never receive an identifier are
+    excluded from the mean and counted separately -- they are the stronger
+    result, but they have no comparison date, so folding them in would inflate
+    the average with an arbitrary number.
+    """
+    rows, never = [], 0
+    for finding in session.query(ZeroDayFinding).all():
+        has_identifier = bool(finding.cve_ids or finding.ghsa_ids)
+        first_seen = finding.revealed_at or finding.first_seen_at
+        if not has_identifier:
+            if finding.stage in (zeroday_feeds.STAGE_REVEALED,):
+                never += 1
+            continue
+
+        published = (session.query(Vulnerability)
+                     .filter(Vulnerability.cve_id.in_(
+                         [c for c in (finding.cve_ids or "").split(",") if c]))
+                     .first()) if finding.cve_ids else None
+        published_at = published.published_at if published else None
+        if not (first_seen and published_at):
+            continue
+
+        if first_seen.tzinfo is None:
+            first_seen = first_seen.replace(tzinfo=dt.timezone.utc)
+        if published_at.tzinfo is None:
+            published_at = published_at.replace(tzinfo=dt.timezone.utc)
+
+        rows.append({
+            "source": finding.source,
+            "source_id": finding.source_id,
+            "project": finding.project,
+            "revealed_at": first_seen.isoformat(),
+            "identifier_published_at": published_at.isoformat(),
+            "lead_time_days": round(
+                (published_at - first_seen).total_seconds() / 86400.0, 2),
+        })
+
+    lead_times = [r["lead_time_days"] for r in rows if r["lead_time_days"] > 0]
+    return {
+        "measured": len(rows),
+        "with_positive_lead_time": len(lead_times),
+        "mean_lead_time_days": round(sum(lead_times) / len(lead_times), 2)
+        if lead_times else None,
+        "median_lead_time_days": round(sorted(lead_times)[len(lead_times) // 2], 2)
+        if lead_times else None,
+        "no_identifier_ever": never,
+        "note": "Findings that never received an identifier are counted "
+                "separately: they have no publication date to compare against, "
+                "and they are the population no identifier-keyed tool can see "
+                "at all.",
+        "rows": rows[:100],
+    }

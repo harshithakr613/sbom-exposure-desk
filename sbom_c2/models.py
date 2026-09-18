@@ -1,7 +1,8 @@
 """
 Relational schema.
 
-Capstone 1 tables:  Repository, Component, Vulnerability, Exposure
+Capstone 1 tables:  Repository, Component, Vulnerability, Exposure,
+                    ZeroDayFinding, ZeroDayExposure
 Capstone 2 tables:  BusinessProcess, ProcessRepositoryLink, RemediationEvent,
                     ImpactSnapshot
 """
@@ -128,6 +129,109 @@ class Exposure(Base):
     resolved_at = Column(DateTime)
 
     repository = relationship("Repository", back_populates="exposures")
+
+
+# --------------------------------------------------------------------------
+# Capstone 1: pre-disclosure ("zero-day") layer
+# --------------------------------------------------------------------------
+
+class ZeroDayFinding(Base):
+    """
+    One normalised pre-disclosure finding, from any source.
+
+    Kept separate from Vulnerability rather than folded into it, because the
+    two are not the same kind of record. A Vulnerability is keyed on a
+    published advisory id and always has an affected version range; a
+    ZeroDayFinding may have neither, and forcing it into that table would mean
+    either nullable keys everywhere or silently dropping the findings this
+    project exists to catch.
+    """
+
+    __tablename__ = "zero_day_findings"
+    __table_args__ = (UniqueConstraint("source", "source_id",
+                                       name="uq_zero_day_finding"),)
+
+    id = Column(Integer, primary_key=True)
+    source = Column(String(30), nullable=False, index=True)   # cvd/ossfuzz/...
+    source_id = Column(String(120), nullable=False)           # ANT-.. / OSV-..
+    stage = Column(String(20), index=True)   # commitment/revealed/identified/patched
+    evidence_tier = Column(String(20))       # T3_PURL / T1_COMMIT / ...
+
+    project = Column(String(255), index=True)
+    bug_class = Column(String(255))
+    summary = Column(Text)
+    package_name = Column(String(255))
+    ecosystem = Column(String(60))
+    purl = Column(String(500))
+    repo_url = Column(String(500))
+
+    severity_band = Column(String(20))
+    severities = Column(Text)                # JSON: per-assessor bands
+    commit_ranges = Column(Text)             # JSON
+    affected_ranges = Column(Text)           # JSON
+    fixed_version = Column(String(120))
+
+    cve_ids = Column(String(500))            # comma separated, display only
+    ghsa_ids = Column(String(500))
+    patched = Column(Boolean, default=False)
+    exploited = Column(Boolean, default=False, index=True)
+    kev_due_date = Column(DateTime)
+
+    committed_at = Column(DateTime)
+    revealed_at = Column(DateTime)
+    patched_at = Column(DateTime)
+    first_seen_at = Column(DateTime, default=_now)
+    last_seen_at = Column(DateTime, default=_now)
+    url = Column(String(500))
+
+    exposures = relationship("ZeroDayExposure", back_populates="finding",
+                             cascade="all, delete-orphan")
+
+
+class ZeroDayExposure(Base):
+    """
+    A (repository, component, pre-disclosure finding) hit.
+
+    `evidence_tier` and `verified` are stored on the row rather than derived,
+    so precision and recall can be reported per tier afterwards. Averaging a
+    deliberately over-inclusive T0 name match together with a verified PURL
+    match into one accuracy figure would be the actual methodological error.
+    """
+
+    __tablename__ = "zero_day_exposures"
+    __table_args__ = (UniqueConstraint("finding_id", "repository_id",
+                                       "component_name", "component_version",
+                                       name="uq_zero_day_exposure"),)
+
+    id = Column(Integer, primary_key=True)
+    finding_id = Column(Integer, ForeignKey("zero_day_findings.id"),
+                        nullable=False)
+    repository_id = Column(Integer, ForeignKey("repositories.id"),
+                           nullable=False)
+
+    component_name = Column(String(255), nullable=False)
+    component_version = Column(String(120))
+    ecosystem = Column(String(60))
+    purl = Column(String(500))
+
+    evidence_tier = Column(String(20), index=True)
+    match_confidence = Column(Float)
+    match_reason = Column(Text)
+    verified = Column(Boolean, default=False)
+
+    zero_day_score = Column(Float)
+    tier = Column(String(20))
+    degraded = Column(Boolean, default=True)
+    score_explanation = Column(Text)         # JSON: substitutions + factors
+
+    state = Column(String(20), default="open", index=True)
+    acknowledged_by = Column(String(120))
+    acknowledged_at = Column(DateTime)
+    detected_at = Column(DateTime, default=_now)
+    resolved_at = Column(DateTime)
+
+    finding = relationship("ZeroDayFinding", back_populates="exposures")
+    repository = relationship("Repository")
 
 
 # --------------------------------------------------------------------------

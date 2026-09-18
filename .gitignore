@@ -5,3 +5,7 @@ __pycache__/
 *.db
 ground_truth*.csv
 .DS_Store
+*.bak
+*.db
+*.db.backup
+.env
